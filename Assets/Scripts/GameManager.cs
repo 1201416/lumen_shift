@@ -1,0 +1,115 @@
+using UnityEngine;
+using System.Collections.Generic;
+
+/// <summary>
+/// Game Manager - tracks lightning bolts collected and manages game state.
+/// This is what lightning bolts notify when collected.
+/// </summary>
+public class GameManager : MonoBehaviour
+{
+    [Header("Lightning Bolt Tracking")]
+    public int totalBoltsCollected = 0;
+    public int boltsRequiredToProgress = 3; // Number needed to unlock next level/area
+    
+    [Header("Time of Day")]
+    public bool isDayTime = true;
+    public float dayNightCycleDuration = 60f; // Seconds for full cycle
+    private float cycleTimer = 0f;
+    
+    [Header("Events")]
+    public System.Action<bool> OnTimeOfDayChanged;
+    public System.Action<int> OnBoltCollected;
+    public System.Action OnAllBoltsCollected;
+    
+    private List<LightningBolt> allBolts = new List<LightningBolt>();
+    private List<BoxBlock> allBoxes = new List<BoxBlock>();
+
+    void Start()
+    {
+        // Find all collectibles and blocks in the scene
+        allBolts.AddRange(FindObjectsOfType<LightningBolt>());
+        allBoxes.AddRange(FindObjectsOfType<BoxBlock>());
+        
+        // Notify all objects of initial time state
+        UpdateTimeOfDay(isDayTime);
+    }
+
+    void Update()
+    {
+        // Day/night cycle (if you want automatic cycling)
+        // Uncomment this if you want automatic day/night switching
+        /*
+        cycleTimer += Time.deltaTime;
+        if (cycleTimer >= dayNightCycleDuration)
+        {
+            cycleTimer = 0f;
+            ToggleDayNight();
+        }
+        */
+        
+        // Manual toggle with T key (for testing)
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            ToggleDayNight();
+        }
+    }
+
+    /// <summary>
+    /// Called when a lightning bolt is collected
+    /// </summary>
+    public void CollectLightningBolt(int value)
+    {
+        totalBoltsCollected += value;
+        
+        OnBoltCollected?.Invoke(totalBoltsCollected);
+        
+        Debug.Log($"Lightning Bolt Collected! Total: {totalBoltsCollected}/{boltsRequiredToProgress}");
+        
+        // Check if player has collected enough bolts
+        if (totalBoltsCollected >= boltsRequiredToProgress)
+        {
+            OnAllBoltsCollected?.Invoke();
+            Debug.Log("All lightning bolts collected! You can progress!");
+        }
+    }
+
+    /// <summary>
+    /// Toggle between day and night
+    /// </summary>
+    public void ToggleDayNight()
+    {
+        isDayTime = !isDayTime;
+        UpdateTimeOfDay(isDayTime);
+    }
+
+    /// <summary>
+    /// Set time of day and notify all relevant objects
+    /// </summary>
+    public void UpdateTimeOfDay(bool isDay)
+    {
+        isDayTime = isDay;
+        
+        // Notify all lightning bolts
+        foreach (var bolt in allBolts)
+        {
+            if (bolt != null)
+            {
+                bolt.SetTimeOfDay(isDay);
+            }
+        }
+        
+        // Notify all boxes
+        foreach (var box in allBoxes)
+        {
+            if (box != null)
+            {
+                box.SetTimeOfDay(isDay);
+            }
+        }
+        
+        OnTimeOfDayChanged?.Invoke(isDay);
+        
+        Debug.Log($"Time of Day: {(isDay ? "DAY" : "NIGHT")}");
+    }
+}
+
