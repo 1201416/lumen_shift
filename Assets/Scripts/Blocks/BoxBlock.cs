@@ -17,6 +17,8 @@ public class BoxBlock : MonoBehaviour
     public bool reactsToTimeOfDay = true;
     public bool canBeDestroyed = true;
     public bool canBePushed = true;
+    [Tooltip("If true, box will be visible only during day. If false, visible only at night.")]
+    public bool visibleDuringDay = true;
     
     [Header("Destruction")]
     public GameObject destructionEffect;
@@ -35,6 +37,17 @@ public class BoxBlock : MonoBehaviour
         
         SetupBox();
     }
+    
+    void Start()
+    {
+        // Check GameManager for initial time state
+        GameManager gameManager = FindObjectOfType<GameManager>();
+        if (gameManager != null && reactsToTimeOfDay)
+        {
+            isDayTime = gameManager.isDayTime;
+            UpdateVisuals();
+        }
+    }
 
     void SetupBox()
     {
@@ -42,12 +55,59 @@ public class BoxBlock : MonoBehaviour
         {
             spriteRenderer.sprite = boxSprite;
         }
-        
-        UpdateVisuals();
+        else
+        {
+            // Create a default white sprite if none is assigned
+            spriteRenderer.sprite = CreateDefaultSprite();
+        }
         
         // Setup collider
         boxCollider.enabled = true;
         boxCollider.isTrigger = false;
+        
+        // Auto-size collider to match sprite bounds
+        if (spriteRenderer.sprite != null)
+        {
+            boxCollider.size = spriteRenderer.sprite.bounds.size;
+        }
+        else
+        {
+            // Default size: thinner blocks (1 unit wide, 0.5 units tall)
+            boxCollider.size = new Vector2(1f, 0.5f);
+        }
+        
+        // Update visuals (this will set initial visibility)
+        UpdateVisuals();
+    }
+    
+    /// <summary>
+    /// Creates a default sprite for blocks - thinner (wider than tall) so player can jump onto them
+    /// </summary>
+    Sprite CreateDefaultSprite()
+    {
+        // Create a thinner block: wider than tall (horizontal platform shape)
+        // This makes it easier to jump onto blocks
+        int width = 32;  // Wide
+        int height = 16; // Thin (half the width)
+        Texture2D texture = new Texture2D(width, height);
+        Color[] pixels = new Color[width * height];
+        
+        // Use box color
+        Color blockColor = dayColor;
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            pixels[i] = blockColor;
+        }
+        texture.SetPixels(pixels);
+        texture.Apply();
+        
+        // Set texture filter mode to prevent gaps between sprites
+        texture.filterMode = FilterMode.Bilinear;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        
+        // Create sprite from texture (1 unit = 32 pixels, so pixelsPerUnit = 32)
+        // Thinner blocks: width = 1 unit, height = 0.5 units
+        return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 32f);
     }
 
     /// <summary>
@@ -73,7 +133,24 @@ public class BoxBlock : MonoBehaviour
 
     void UpdateVisuals()
     {
-        spriteRenderer.color = isDayTime ? dayColor : nightColor;
+        // Blocks keep their original colors - don't change based on day/night
+        // Only background changes, not block colors
+        spriteRenderer.color = dayColor; // Always use day color
+        
+        // Handle visibility based on day/night
+        if (reactsToTimeOfDay)
+        {
+            // If visibleDuringDay is true, show during day. If false, show during night.
+            bool shouldBeVisible = visibleDuringDay ? isDayTime : !isDayTime;
+            spriteRenderer.enabled = shouldBeVisible;
+            boxCollider.enabled = shouldBeVisible;
+        }
+        else
+        {
+            // Always visible if not reacting to time of day
+            spriteRenderer.enabled = true;
+            boxCollider.enabled = true;
+        }
     }
 
     /// <summary>
@@ -104,9 +181,17 @@ public class BoxBlock : MonoBehaviour
 
     void OnValidate()
     {
-        if (spriteRenderer != null && boxSprite != null)
+        if (spriteRenderer != null)
         {
-            spriteRenderer.sprite = boxSprite;
+            if (boxSprite != null)
+            {
+                spriteRenderer.sprite = boxSprite;
+            }
+            else if (Application.isPlaying)
+            {
+                // Only create default sprite at runtime, not in editor
+                spriteRenderer.sprite = CreateDefaultSprite();
+            }
             UpdateVisuals();
         }
     }

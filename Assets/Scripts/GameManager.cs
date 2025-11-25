@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
 /// <summary>
@@ -26,12 +27,24 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        // Find all collectibles and blocks in the scene
-        allBolts.AddRange(FindObjectsOfType<LightningBolt>());
-        allBoxes.AddRange(FindObjectsOfType<BoxBlock>());
+        RefreshAllObjects();
         
         // Notify all objects of initial time state
         UpdateTimeOfDay(isDayTime);
+    }
+    
+    /// <summary>
+    /// Refresh lists of all bolts and boxes in the scene
+    /// Call this after generating new level content
+    /// </summary>
+    public void RefreshAllObjects()
+    {
+        allBolts.Clear();
+        allBoxes.Clear();
+        
+        // Find all collectibles and blocks in the scene
+        allBolts.AddRange(FindObjectsOfType<LightningBolt>());
+        allBoxes.AddRange(FindObjectsOfType<BoxBlock>());
     }
 
     void Update()
@@ -47,8 +60,8 @@ public class GameManager : MonoBehaviour
         }
         */
         
-        // Manual toggle with T key (for testing)
-        if (Input.GetKeyDown(KeyCode.T))
+        // Manual toggle with T key (for testing) - using new Input System
+        if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
         {
             ToggleDayNight();
         }

@@ -46,6 +46,11 @@ public class LightningBolt : MonoBehaviour
         {
             spriteRenderer.sprite = lightningSprite;
         }
+        else
+        {
+            // Create default lightning bolt sprite if none exists
+            spriteRenderer.sprite = CreateDefaultLightningSprite();
+        }
         
         spriteRenderer.color = lightningColor;
         spriteRenderer.sortingOrder = 10; // Make sure it appears above other sprites
@@ -53,6 +58,89 @@ public class LightningBolt : MonoBehaviour
         // Setup collider as trigger so player can collect it
         circleCollider.isTrigger = true;
         circleCollider.radius = 0.5f; // Adjust based on sprite size
+    }
+    
+    /// <summary>
+    /// Create a default lightning bolt sprite
+    /// </summary>
+    Sprite CreateDefaultLightningSprite()
+    {
+        int size = 32;
+        Texture2D texture = new Texture2D(size, size);
+        Color[] pixels = new Color[size * size];
+        
+        // Initialize with transparent
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            pixels[i] = Color.clear;
+        }
+        
+        Color boltColor = lightningColor;
+        Color brightColor = Color.white;
+        
+        // Draw lightning bolt shape (zigzag)
+        int centerX = size / 2;
+        
+        // Lightning bolt path
+        for (int y = 0; y < size; y++)
+        {
+            float normalizedY = (float)y / size;
+            int x = centerX;
+            
+            // Create zigzag pattern
+            if (normalizedY < 0.3f)
+            {
+                x = centerX + (int)(Mathf.Sin(normalizedY * 20f) * 3f);
+            }
+            else if (normalizedY < 0.7f)
+            {
+                x = centerX - (int)(Mathf.Sin(normalizedY * 15f) * 4f);
+            }
+            else
+            {
+                x = centerX + (int)(Mathf.Sin(normalizedY * 25f) * 2f);
+            }
+            
+            x = Mathf.Clamp(x, 2, size - 3);
+            
+            // Draw bolt with thickness
+            for (int offset = -1; offset <= 1; offset++)
+            {
+                int px = x + offset;
+                if (px >= 0 && px < size)
+                {
+                    int index = y * size + px;
+                    if (index >= 0 && index < pixels.Length)
+                    {
+                        pixels[index] = offset == 0 ? brightColor : boltColor;
+                    }
+                }
+            }
+        }
+        
+        texture.SetPixels(pixels);
+        texture.Apply();
+        texture.filterMode = FilterMode.Bilinear;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        
+        return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 32f);
+    }
+    
+    void Start()
+    {
+        // Check GameManager for initial time state
+        GameManager gameManager = FindObjectOfType<GameManager>();
+        if (gameManager != null)
+        {
+            isDayTime = gameManager.isDayTime;
+            UpdateVisuals();
+        }
+        else
+        {
+            // Default to day if no GameManager found
+            isDayTime = true;
+            UpdateVisuals();
+        }
     }
 
     void Update()
@@ -79,13 +167,19 @@ public class LightningBolt : MonoBehaviour
 
     void UpdateVisuals()
     {
-        if (glowsAtNight && !isDayTime)
+        // Lightning bolts are ONLY visible at night
+        if (!isDayTime)
         {
-            spriteRenderer.color = nightGlowColor;
+            // Visible at night - use glow color
+            spriteRenderer.enabled = true;
+            spriteRenderer.color = glowsAtNight ? nightGlowColor : lightningColor;
+            circleCollider.enabled = true;
         }
         else
         {
-            spriteRenderer.color = lightningColor;
+            // Hidden during day
+            spriteRenderer.enabled = false;
+            circleCollider.enabled = false;
         }
     }
 
