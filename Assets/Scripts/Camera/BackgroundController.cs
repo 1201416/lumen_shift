@@ -9,7 +9,7 @@ using System.Collections;
 public class BackgroundController : MonoBehaviour
 {
     [Header("Background Colors")]
-    public Color dayBackgroundColor = new Color(0.5f, 0.7f, 1f); // Light blue sky
+    public Color dayBackgroundColor = new Color(0.7f, 0.85f, 1f); // Bright light blue sky
     public Color nightBackgroundColor = new Color(0.05f, 0.05f, 0.15f); // Dark blue/night sky
     
     [Header("Transition Settings")]
@@ -48,8 +48,43 @@ public class BackgroundController : MonoBehaviour
         if (gameManager != null)
         {
             gameManager.OnTimeOfDayChanged += UpdateBackground;
-            // Set initial background color
-            UpdateBackground(gameManager.isDayTime);
+            // Set initial background color immediately (don't wait for transition)
+            if (targetCamera != null)
+            {
+                targetColor = gameManager.isDayTime ? dayBackgroundColor : nightBackgroundColor;
+                currentColor = targetColor;
+                targetCamera.backgroundColor = currentColor;
+            }
+        }
+    }
+    
+    private void OnEnable()
+    {
+        // Ensure camera and game manager are found
+        if (targetCamera == null)
+        {
+            targetCamera = Camera.main;
+        }
+        
+        if (gameManager == null)
+        {
+            gameManager = FindFirstObjectByType<GameManager>();
+        }
+        
+        // Subscribe to event and set initial color if not already done in Start
+        if (gameManager != null && targetCamera != null)
+        {
+            // Only subscribe if not already subscribed (Start might have already done this)
+            // Note: C# events don't prevent duplicate subscriptions, but we'll handle it
+            gameManager.OnTimeOfDayChanged += UpdateBackground;
+            
+            // Set initial background color immediately if not already set
+            if (currentColor == Color.clear || currentColor == Color.black)
+            {
+                targetColor = gameManager.isDayTime ? dayBackgroundColor : nightBackgroundColor;
+                currentColor = targetColor;
+                targetCamera.backgroundColor = currentColor;
+            }
         }
     }
     
@@ -71,7 +106,11 @@ public class BackgroundController : MonoBehaviour
     /// </summary>
     public void UpdateBackground(bool isDay)
     {
-        if (targetCamera == null) return;
+        if (targetCamera == null)
+        {
+            Debug.LogWarning("BackgroundController: targetCamera is null!");
+            return;
+        }
         
         // Stop any existing transition
         if (transitionCoroutine != null)
@@ -81,6 +120,8 @@ public class BackgroundController : MonoBehaviour
         
         // Set target color
         targetColor = isDay ? dayBackgroundColor : nightBackgroundColor;
+        
+        Debug.Log($"BackgroundController: Updating background to {(isDay ? "DAY" : "NIGHT")} - Color: {targetColor}");
         
         // Start smooth transition
         transitionCoroutine = StartCoroutine(SmoothTransition());

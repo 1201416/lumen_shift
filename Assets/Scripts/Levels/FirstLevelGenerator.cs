@@ -12,7 +12,7 @@ public class FirstLevelGenerator : MonoBehaviour
     [Header("Level Settings")]
     public float blockSize = 1f;
     [Tooltip("Total number of floor blocks to create")]
-    public int totalFloorBlocks = 160;
+    public int totalFloorBlocks = 96; // Reduced to 3/5 of original (160 * 0.6 = 96)
     [Tooltip("Number of blocks visible on screen at once")]
     public int visibleBlocks = 16;
     
@@ -166,7 +166,13 @@ public class FirstLevelGenerator : MonoBehaviour
             }
             
             bgController.targetCamera = mainCamera;
-            bgController.gameManager = FindFirstObjectByType<GameManager>();
+            GameManager gm = FindFirstObjectByType<GameManager>();
+            if (gm != null)
+            {
+                bgController.gameManager = gm;
+                // Immediately set the background color based on current day/night state
+                bgController.UpdateBackground(gm.isDayTime);
+            }
         }
     }
     
@@ -274,6 +280,12 @@ public class FirstLevelGenerator : MonoBehaviour
             // Make camera 2x closer (37.5% of calculated size = 2x zoom)
             // Original was 75%, now 37.5% = 2x zoom
             float zoomedInSize = calculatedSize * 0.375f;
+            
+            // Reduce ground visibility - show only 1/4 of current screen (1/2 of current ground view)
+            // Adjust camera to show less ground by reducing vertical view
+            float groundReduction = 0.5f; // Show half the ground (which is 1/4 of screen)
+            zoomedInSize = zoomedInSize * groundReduction;
+            
             cameraFollow.cameraSize = zoomedInSize;
             mainCamera.orthographicSize = zoomedInSize;
             
@@ -880,7 +892,10 @@ public class FirstLevelGenerator : MonoBehaviour
             bool farFromDayBlocks = minDistToDay >= minDistanceToDayBlock;
             bool spreadOut = !tooCloseToOtherBolts;
             
-            if (withinNightRange && farFromDayBlocks && spreadOut)
+            // CRITICAL: Check if position is NOT inside any block (must have background behind)
+            bool notInsideBlock = !IsPositionInsideBlock(candidatePos);
+            
+            if (withinNightRange && farFromDayBlocks && spreadOut && notInsideBlock)
             {
                 CreateLightningBolt(candidatePos);
                 placedBoltPositions.Add(candidatePos);
@@ -1005,11 +1020,17 @@ public class FirstLevelGenerator : MonoBehaviour
                 }
             }
             
-            // Only place if far from day blocks
+            // Only place if far from day blocks AND not inside any block
             if (!tooCloseToDay)
             {
                 boltY = nearestNightY + 1.5f; // Above the night block
-                CreateLightningBolt(new Vector3(boltX, boltY, 0f));
+                Vector3 boltPos = new Vector3(boltX, boltY, 0f);
+                
+                // Check if position is not inside any block
+                if (!IsPositionInsideBlock(boltPos))
+                {
+                    CreateLightningBolt(boltPos);
+                }
             }
         }
     }
@@ -1055,6 +1076,27 @@ public class FirstLevelGenerator : MonoBehaviour
         
         // Monster 11: Middle of night bridge 4 (final bridge to finish)
         CreateMonster(new Vector3(80f * blockSize, 1.7f, 0f));
+    }
+    
+    /// <summary>
+    /// Check if a position is inside any block (lightning bolts must have background behind)
+    /// </summary>
+    bool IsPositionInsideBlock(Vector3 position)
+    {
+        // Check collision with all blocks
+        Collider2D[] overlaps = Physics2D.OverlapPointAll(position);
+        foreach (Collider2D col in overlaps)
+        {
+            // If it overlaps with a block (not a trigger), it's inside a block
+            if (col != null && !col.isTrigger)
+            {
+                if (col.GetComponent<BoxBlock>() != null || col.GetComponent<FloorBlock>() != null)
+                {
+                    return true; // Position is inside a block
+                }
+            }
+        }
+        return false; // Position has background behind it
     }
     
     /// <summary>
@@ -1155,12 +1197,17 @@ public class FirstLevelGenerator : MonoBehaviour
         {
             GameObject bolt = Instantiate(lightningBoltPrefab, position, Quaternion.identity);
             bolt.transform.SetParent(itemsParent);
+            // Scale lightning bolt to 50% of its original size
+            bolt.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
         }
         else
         {
             GameObject bolt = new GameObject("LightningBolt");
             bolt.transform.position = position;
             bolt.transform.SetParent(itemsParent);
+            
+            // Scale lightning bolt to 50% of its original size
+            bolt.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
             
             LightningBolt lightningBolt = bolt.AddComponent<LightningBolt>();
         }
@@ -1399,29 +1446,31 @@ public class FirstLevelGenerator : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         rb.gravityScale = 3f;
         
-        // Add Collider2D (CapsuleCollider2D for better character physics)
-        CapsuleCollider2D col = player.AddComponent<CapsuleCollider2D>();
-        col.direction = CapsuleDirection2D.Vertical;
+        // Add Collider2D - use BoxCollider2D to match sprite exactly
+        BoxCollider2D playerCollider = player.AddComponent<BoxCollider2D>();
+        playerCollider.isTrigger = false;
+        playerCollider.usedByEffector = false;
         
-        // Auto-size collider based on sprite
+        // Auto-size collider to match sprite EXACTLY
         if (spriteToUse != null)
         {
             Vector2 spriteSize = spriteToUse.bounds.size;
-            col.size = spriteSize;
+            playerCollider.size = spriteSize; // Exact match to sprite size
         }
         else
         {
-            // Default size if no sprite
-            col.size = new Vector2(0.875f, 0.5625f);
+            // Default size if no sprite (will be updated by PlayerController)
+            playerCollider.size = new Vector2(0.875f, 0.5625f);
         }
-        
-        col.isTrigger = false;
         
         // Ensure rotation is correct (facing right, not sideways)
         player.transform.rotation = Quaternion.identity; // No rotation
         
         // Add PlayerController (this will set up additional things in Awake)
         PlayerController controller = player.AddComponent<PlayerController>();
+        
+        // Add PlayerAnimationController for animations
+        PlayerAnimationController animController = player.AddComponent<PlayerAnimationController>();
         
         // IMPORTANT: Ensure sprite is set AFTER PlayerController is added
         // Use a coroutine to set sprite after all Awake() methods complete

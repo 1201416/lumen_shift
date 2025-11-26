@@ -59,9 +59,23 @@ public class LightningBolt : MonoBehaviour
         spriteRenderer.color = lightningColor;
         spriteRenderer.sortingOrder = 10; // Make sure it appears above other sprites
         
-        // Setup collider as trigger so player can collect it
-        circleCollider.isTrigger = true;
-        circleCollider.radius = 0.5f; // Adjust based on sprite size
+        // Setup collider - NOT a trigger so it collides with blocks (prevents being inside blocks)
+        // Player collection is handled via OnTriggerEnter2D
+        circleCollider.isTrigger = false; // Solid collision with blocks
+        circleCollider.radius = 0.3f; // Adjust based on sprite size
+        
+        // Add a separate trigger collider for player collection (larger radius)
+        // This allows player to collect while bolt still collides with blocks
+        GameObject triggerObj = new GameObject("CollectionTrigger");
+        triggerObj.transform.SetParent(transform);
+        triggerObj.transform.localPosition = Vector3.zero;
+        CircleCollider2D triggerCollider = triggerObj.AddComponent<CircleCollider2D>();
+        triggerCollider.isTrigger = true;
+        triggerCollider.radius = 0.5f; // Larger radius for easier collection
+        
+        // Add component to handle collection
+        LightningBoltCollector collector = triggerObj.AddComponent<LightningBoltCollector>();
+        collector.bolt = this;
     }
     
     /// <summary>
@@ -225,17 +239,23 @@ public class LightningBolt : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        // Check if player collected it
+        // Check if player collected it (only from trigger collider)
         if (isCollected) return;
         
-        // Assuming player has a tag "Player" or a component like "PlayerController"
+        // Only collect if it's the player (not blocks)
         if (other.CompareTag("Player") || other.GetComponent<PlayerController>() != null)
         {
             CollectBolt();
         }
     }
+    
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        // Lightning bolt collides with blocks - this prevents it from being inside blocks
+        // The solid collider ensures it bounces off or sits on top of blocks
+    }
 
-    void CollectBolt()
+    public void CollectBolt()
     {
         if (isCollected) return;
         isCollected = true;

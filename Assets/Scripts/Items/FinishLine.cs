@@ -28,11 +28,11 @@ public class FinishLine : MonoBehaviour
         finishCollider = GetComponent<BoxCollider2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         
-        // Setup as trigger
+        // Setup as trigger for completion detection
         finishCollider.isTrigger = true;
         finishCollider.size = new Vector2(0.5f, 2f); // Tall enough to catch player
         
-        // Create finish line sprite
+        // Create finish line sprite (simple banner)
         if (spriteRenderer.sprite == null)
         {
             spriteRenderer.sprite = CreateFinishLineSprite();
@@ -40,6 +40,23 @@ public class FinishLine : MonoBehaviour
         
         spriteRenderer.color = finishLineColor;
         spriteRenderer.sortingOrder = 5; // Above ground, below UI
+        
+        // Create invisible boundary wall on the right side to prevent passing through
+        CreateRightBoundary();
+    }
+    
+    /// <summary>
+    /// Create an invisible boundary wall on the right side to prevent player from passing through
+    /// </summary>
+    void CreateRightBoundary()
+    {
+        GameObject boundary = new GameObject("FinishLineBoundary");
+        boundary.transform.SetParent(transform);
+        boundary.transform.localPosition = new Vector3(0.3f, 0f, 0f); // Slightly to the right of finish line
+        
+        BoxCollider2D boundaryCollider = boundary.AddComponent<BoxCollider2D>();
+        boundaryCollider.isTrigger = false; // Solid collision
+        boundaryCollider.size = new Vector2(0.2f, 10f); // Tall and thin wall
     }
     
     void Start()
@@ -56,65 +73,40 @@ public class FinishLine : MonoBehaviour
     }
     
     /// <summary>
-    /// Create a finish line sprite - flag on a pole
+    /// Create a finish line sprite - simple banner (horizontal strip)
     /// </summary>
     Sprite CreateFinishLineSprite()
     {
-        int width = 16;
-        int height = 32;
+        int width = 32; // Wider banner
+        int height = 8; // Thin horizontal banner
         Texture2D texture = new Texture2D(width, height);
         Color[] pixels = new Color[width * height];
         
-        // Initialize with transparent
-        for (int i = 0; i < pixels.Length; i++)
-        {
-            pixels[i] = Color.clear;
-        }
+        Color bannerColor = finishLineColor;
+        Color borderColor = new Color(finishLineColor.r * 0.7f, finishLineColor.g * 0.7f, finishLineColor.b * 0.7f);
         
-        Color poleColor = new Color(0.4f, 0.2f, 0.1f); // Brown pole
-        Color flagColor = finishLineColor;
-        
-        // Draw flag pole (vertical line in center)
-        int poleX = width / 2;
+        // Draw simple horizontal banner
         for (int y = 0; y < height; y++)
         {
-            int index = y * width + poleX;
-            if (index >= 0 && index < pixels.Length)
-            {
-                pixels[index] = poleColor;
-            }
-            // Make pole slightly wider
-            if (poleX - 1 >= 0)
-            {
-                int leftIndex = y * width + (poleX - 1);
-                if (leftIndex >= 0 && leftIndex < pixels.Length)
-                {
-                    pixels[leftIndex] = poleColor;
-                }
-            }
-        }
-        
-        // Draw flag (triangle on right side of pole)
-        int flagStartY = (int)(height * 0.6f); // Flag starts at 60% from bottom
-        int flagEndY = height - 2;
-        int flagWidth = width - poleX - 2;
-        
-        for (int y = flagStartY; y < flagEndY; y++)
-        {
-            float progress = (float)(y - flagStartY) / (flagEndY - flagStartY);
-            int currentFlagWidth = Mathf.RoundToInt(flagWidth * (1f - progress * 0.3f)); // Tapered flag
-            
-            for (int x = poleX + 2; x < poleX + 2 + currentFlagWidth && x < width; x++)
+            for (int x = 0; x < width; x++)
             {
                 int index = y * width + x;
-                if (index >= 0 && index < pixels.Length)
+                
+                // Border
+                if (y == 0 || y == height - 1 || x == 0 || x == width - 1)
                 {
-                    pixels[index] = flagColor;
-                    
-                    // Add checkered pattern
+                    pixels[index] = borderColor;
+                }
+                else
+                {
+                    // Banner with checkered pattern
                     if ((x + y) % 4 < 2)
                     {
-                        pixels[index] = Color.Lerp(flagColor, Color.white, 0.2f);
+                        pixels[index] = bannerColor;
+                    }
+                    else
+                    {
+                        pixels[index] = Color.Lerp(bannerColor, Color.white, 0.1f);
                     }
                 }
             }
@@ -122,10 +114,10 @@ public class FinishLine : MonoBehaviour
         
         texture.SetPixels(pixels);
         texture.Apply();
-        texture.filterMode = FilterMode.Bilinear;
+        texture.filterMode = FilterMode.Point; // Pixel art style
         texture.wrapMode = TextureWrapMode.Clamp;
         
-        return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0f), 32f);
+        return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 32f);
     }
     
     void OnTriggerEnter2D(Collider2D other)

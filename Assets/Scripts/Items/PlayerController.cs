@@ -19,6 +19,11 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private bool isGrounded = false;
     private Vector2 lastPosition;
+    
+    // Public getters for animation controller
+    public float GetHorizontalVelocity() => rb != null ? rb.linearVelocity.x : 0f;
+    public float GetVerticalVelocity() => rb != null ? rb.linearVelocity.y : 0f;
+    public bool IsGrounded() => isGrounded;
 
     void Awake()
     {
@@ -70,21 +75,19 @@ public class PlayerController : MonoBehaviour
             // Collider exists (like CapsuleCollider2D), ensure it's configured correctly
             existingCollider.isTrigger = false; // Must be solid for physics
             
-            // Auto-size collider to match sprite if sprite exists
+            // Auto-size collider to match sprite EXACTLY if sprite exists
             if (sr.sprite != null)
             {
                 Vector2 spriteSize = sr.sprite.bounds.size;
                 if (existingCollider is BoxCollider2D boxCol)
                 {
-                    boxCol.size = spriteSize;
+                    boxCol.size = spriteSize; // Exact match to sprite size
                     boxCol.usedByEffector = false;
                 }
                 else if (existingCollider is CapsuleCollider2D capsuleCol)
                 {
-                    // For capsule, use the smaller dimension for radius, height is the larger
-                    float minDim = Mathf.Min(spriteSize.x, spriteSize.y);
-                    float maxDim = Mathf.Max(spriteSize.x, spriteSize.y);
-                    capsuleCol.size = new Vector2(minDim, maxDim);
+                    // For capsule, match sprite dimensions exactly
+                    capsuleCol.size = spriteSize; // Exact match
                     capsuleCol.usedByEffector = false;
                 }
             }
@@ -413,6 +416,15 @@ public class PlayerController : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D collision)
     {
+        // CRITICAL: Check if player is hitting the bottom of a block (head collision)
+        // If so, prevent upward movement/teleportation
+        if (IsHittingBlockFromBelow(collision))
+        {
+            // Player is underneath a block - prevent being pushed up
+            PreventUpwardPush(collision);
+            return; // Don't process as normal collision
+        }
+        
         // Handle sliding when hitting blocks from the side
         HandleCollisionSliding(collision);
         
@@ -432,6 +444,116 @@ public class PlayerController : MonoBehaviour
                 }
             }
         }
+    }
+    
+    /// <summary>
+    /// Check if player is hitting a block from below (head hitting bottom of block)
+    /// </summary>
+    bool IsHittingBlockFromBelow(Collision2D collision)
+    {
+        // Only check for blocks (not floor or boundaries)
+        if (collision.gameObject.GetComponent<BoxBlock>() == null)
+        {
+            return false;
+        }
+        
+        // Get block bounds
+        Collider2D blockCollider = collision.collider;
+        if (blockCollider == null) return false;
+        
+        Collider2D playerCollider = GetComponent<Collider2D>();
+        if (playerCollider == null) return false;
+        
+        float blockBottom = blockCollider.bounds.min.y;
+        float blockTop = blockCollider.bounds.max.y;
+        float playerTop = playerCollider.bounds.max.y;
+        float playerBottom = playerCollider.bounds.min.y;
+        float playerCenterY = transform.position.y;
+        float blockCenterY = (blockBottom + blockTop) * 0.5f;
+        
+        // Player is hitting from below if:
+        // 1. Player's center is clearly below the block's center
+        // 2. Player's top is touching or very close to the block's bottom
+        // 3. Player is not jumping (vertical velocity is not strongly upward)
+        
+        bool playerIsBelowBlock = playerCenterY < blockCenterY;
+        bool playerTopTouchingBlockBottom = playerTop >= blockBottom - 0.15f && playerTop <= blockBottom + 0.15f;
+        bool notJumpingUp = rb.linearVelocity.y <= 1f; // Allow small upward velocity for smooth movement
+        
+        if (!playerIsBelowBlock || !playerTopTouchingBlockBottom) return false;
+        
+        // Check contact normals - if they point down (negative Y), we're hitting from below
+        foreach (ContactPoint2D contact in collision.contacts)
+        {
+            // Normal pointing down (negative Y) means we hit the bottom of the block
+            if (contact.normal.y < -0.5f)
+            {
+                return true; // Definitely hitting block from below
+            }
+        }
+        
+        // Also check if player's top is clearly below block's bottom but touching
+        if (playerTopTouchingBlockBottom && playerIsBelowBlock && notJumpingUp)
+        {
+            return true; // Player is underneath and touching
+        }
+        
+        return false;
+    }
+    
+    /// <summary>
+    /// Prevent player from being pushed upward when hitting block from below
+    /// Allows player to continue moving horizontally underneath
+    /// </summary>
+    void PreventUpwardPush(Collision2D collision)
+    {
+        Collider2D blockCollider = collision.collider;
+        Collider2D playerCollider = GetComponent<Collider2D>();
+        if (blockCollider == null || playerCollider == null) return;
+        
+        float blockBottom = blockCollider.bounds.min.y;
+        float playerTop = playerCollider.bounds.max.y;
+        float playerHeight = playerCollider.bounds.size.y;
+        float playerCenterY = transform.position.y;
+        
+        // Get current velocity
+        Vector2 velocity = rb.linearVelocity;
+        
+        // CRITICAL: Cancel ALL upward velocity immediately
+        if (velocity.y > 0f)
+        {
+            velocity.y = 0f; // Completely stop upward movement
+        }
+        
+        // Calculate desired Y position: block bottom minus half player height minus small gap
+        float desiredY = blockBottom - (playerHeight * 0.5f) - 0.02f; // Small gap to prevent sticking
+        
+        // If player's top is at or above block's bottom, immediately reposition
+        if (playerTop >= blockBottom - 0.01f)
+        {
+            // Immediately set position (no lerping) to prevent teleportation
+            transform.position = new Vector3(transform.position.x, desiredY, transform.position.z);
+            
+            // Force zero or negative velocity
+            velocity.y = -0.1f; // Small downward velocity to prevent sticking
+        }
+        // If player is close but not penetrating, gently adjust
+        else if (playerTop > blockBottom - 0.1f)
+        {
+            // Only adjust if significantly above desired position
+            if (transform.position.y > desiredY + 0.02f)
+            {
+                // Fast correction but preserve horizontal position
+                float newY = Mathf.Lerp(transform.position.y, desiredY, Time.fixedDeltaTime * 30f);
+                transform.position = new Vector3(transform.position.x, newY, transform.position.z);
+            }
+            
+            // Ensure downward or zero velocity
+            velocity.y = Mathf.Min(velocity.y, 0f);
+        }
+        
+        // Preserve horizontal velocity so player can continue moving underneath
+        rb.linearVelocity = velocity;
     }
     
     /// <summary>
@@ -502,6 +624,15 @@ public class PlayerController : MonoBehaviour
     
     void OnCollisionStay2D(Collision2D collision)
     {
+        // CRITICAL: Check if player is hitting the bottom of a block (head collision)
+        // If so, prevent upward movement/teleportation
+        if (IsHittingBlockFromBelow(collision))
+        {
+            // Player is underneath a block - prevent being pushed up
+            PreventUpwardPush(collision);
+            return; // Don't process as normal collision
+        }
+        
         // Handle sliding continuously to prevent getting stuck
         HandleCollisionSliding(collision);
         
