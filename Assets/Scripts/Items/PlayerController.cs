@@ -514,42 +514,41 @@ public class PlayerController : MonoBehaviour
         float blockBottom = blockCollider.bounds.min.y;
         float playerTop = playerCollider.bounds.max.y;
         float playerHeight = playerCollider.bounds.size.y;
-        float playerCenterY = transform.position.y;
         
         // Get current velocity
         Vector2 velocity = rb.linearVelocity;
         
-        // CRITICAL: Cancel ALL upward velocity immediately
+        // CRITICAL: Cancel ALL upward velocity immediately - prevent any jumping up
         if (velocity.y > 0f)
         {
-            velocity.y = 0f; // Completely stop upward movement
+            velocity.y = -0.1f; // Force small downward velocity to prevent sticking
         }
         
         // Calculate desired Y position: block bottom minus half player height minus small gap
-        float desiredY = blockBottom - (playerHeight * 0.5f) - 0.02f; // Small gap to prevent sticking
+        float desiredY = blockBottom - (playerHeight * 0.5f) - 0.05f; // Gap to prevent sticking
         
         // If player's top is at or above block's bottom, immediately reposition
-        if (playerTop >= blockBottom - 0.01f)
+        if (playerTop >= blockBottom - 0.02f)
         {
             // Immediately set position (no lerping) to prevent teleportation
             transform.position = new Vector3(transform.position.x, desiredY, transform.position.z);
             
-            // Force zero or negative velocity
-            velocity.y = -0.1f; // Small downward velocity to prevent sticking
+            // Force downward velocity to prevent any upward movement
+            velocity.y = -0.2f; // Small downward velocity
         }
-        // If player is close but not penetrating, gently adjust
-        else if (playerTop > blockBottom - 0.1f)
+        // If player is close but not penetrating, adjust
+        else if (playerTop > blockBottom - 0.15f)
         {
             // Only adjust if significantly above desired position
-            if (transform.position.y > desiredY + 0.02f)
+            if (transform.position.y > desiredY + 0.03f)
             {
                 // Fast correction but preserve horizontal position
-                float newY = Mathf.Lerp(transform.position.y, desiredY, Time.fixedDeltaTime * 30f);
+                float newY = Mathf.Lerp(transform.position.y, desiredY, Time.fixedDeltaTime * 40f);
                 transform.position = new Vector3(transform.position.x, newY, transform.position.z);
             }
             
-            // Ensure downward or zero velocity
-            velocity.y = Mathf.Min(velocity.y, 0f);
+            // Ensure downward or zero velocity (never upward)
+            velocity.y = Mathf.Min(velocity.y, -0.05f); // Always slightly downward
         }
         
         // Preserve horizontal velocity so player can continue moving underneath

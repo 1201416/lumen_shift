@@ -1439,6 +1439,9 @@ public class FirstLevelGenerator : MonoBehaviour
         sr.sortingOrder = 1;
         sr.drawMode = SpriteDrawMode.Simple;
         
+        // Scale down the player to make it smaller (0.6x scale)
+        player.transform.localScale = new Vector3(0.6f, 0.6f, 1f);
+        
         // Add Rigidbody2D
         Rigidbody2D rb = player.AddComponent<Rigidbody2D>();
         rb.bodyType = RigidbodyType2D.Dynamic;
@@ -1484,6 +1487,7 @@ public class FirstLevelGenerator : MonoBehaviour
     
     /// <summary>
     /// Coroutine to set sprite after all components are initialized
+    /// Also ensures collider matches sprite size exactly
     /// </summary>
     IEnumerator SetSpriteAfterInitialization(GameObject playerObj, Sprite sprite)
     {
@@ -1497,6 +1501,16 @@ public class FirstLevelGenerator : MonoBehaviour
             {
                 finalSr.sprite = sprite;
                 Debug.Log($"Sprite set after initialization: {sprite.name}");
+            }
+            
+            // Ensure collider matches sprite size EXACTLY (accounting for scale)
+            BoxCollider2D col = playerObj.GetComponent<BoxCollider2D>();
+            if (col != null && sprite != null)
+            {
+                Vector2 spriteSize = sprite.bounds.size;
+                // Account for the scale we applied (0.6x)
+                col.size = spriteSize; // This will automatically account for transform scale
+                Debug.Log($"Collider size set to match sprite: {col.size} (sprite: {spriteSize})");
             }
         }
     }
