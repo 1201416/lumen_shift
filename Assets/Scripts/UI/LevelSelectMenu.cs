@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem.UI;
 
 /// <summary>
 /// Level selection menu - shows available levels and allows player to select one
@@ -34,7 +35,7 @@ public class LevelSelectMenu : MonoBehaviour
     void SetupMenu()
     {
         // Create Canvas if it doesn't exist
-        Canvas canvas = FindObjectOfType<Canvas>();
+        Canvas canvas = FindFirstObjectByType<Canvas>();
         if (canvas == null)
         {
             GameObject canvasObj = new GameObject("Canvas");
@@ -43,12 +44,29 @@ public class LevelSelectMenu : MonoBehaviour
             canvasObj.AddComponent<CanvasScaler>();
             canvasObj.AddComponent<GraphicRaycaster>();
             
-            // Create EventSystem if it doesn't exist
-            if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
+            // Create or update EventSystem to use Input System
+            UnityEngine.EventSystems.EventSystem eventSystem = FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
+            if (eventSystem == null)
             {
                 GameObject eventSystemObj = new GameObject("EventSystem");
-                eventSystemObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
-                eventSystemObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                eventSystem = eventSystemObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                // Use InputSystemUIInputModule for Input System compatibility
+                eventSystemObj.AddComponent<InputSystemUIInputModule>();
+            }
+            else
+            {
+                // If EventSystem exists but uses old input module, replace it
+                var oldModule = eventSystem.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                if (oldModule != null)
+                {
+                    Destroy(oldModule);
+                    eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
+                }
+                // If no input module exists, add InputSystemUIInputModule
+                else if (eventSystem.GetComponent<InputSystemUIInputModule>() == null)
+                {
+                    eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
+                }
             }
         }
         
@@ -87,7 +105,7 @@ public class LevelSelectMenu : MonoBehaviour
         
         titleText = titleObj.AddComponent<Text>();
         titleText.text = gameTitle;
-        titleText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         titleText.fontSize = 48;
         titleText.color = new Color(1f, 0.9f, 0.2f); // Gold color
         titleText.alignment = TextAnchor.MiddleCenter;
@@ -143,7 +161,7 @@ public class LevelSelectMenu : MonoBehaviour
         
         level1Text = textObj.AddComponent<Text>();
         level1Text.text = "Level 1";
-        level1Text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        level1Text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         level1Text.fontSize = 24;
         level1Text.color = Color.black;
         level1Text.alignment = TextAnchor.MiddleCenter;

@@ -13,7 +13,7 @@ public class FinishLine : MonoBehaviour
     public float flagHeight = 0.3f;
     
     [Header("Completion Settings")]
-    public bool requireAllBolts = false; // If true, player must collect all bolts first
+    public bool requireAllBolts = true; // If true, player must collect all bolts first
     public string nextLevelSceneName = ""; // Leave empty to return to menu
     public float winDelay = 1f; // Delay before showing win message/loading next level
     
@@ -21,6 +21,7 @@ public class FinishLine : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private bool isCompleted = false;
     private GameManager gameManager;
+    private ConclusionScreen conclusionScreen;
     
     void Awake()
     {
@@ -43,7 +44,15 @@ public class FinishLine : MonoBehaviour
     
     void Start()
     {
-        gameManager = FindObjectOfType<GameManager>();
+        gameManager = FindFirstObjectByType<GameManager>();
+        conclusionScreen = FindFirstObjectByType<ConclusionScreen>();
+        
+        // Create conclusion screen if it doesn't exist
+        if (conclusionScreen == null)
+        {
+            GameObject conclusionObj = new GameObject("ConclusionScreen");
+            conclusionScreen = conclusionObj.AddComponent<ConclusionScreen>();
+        }
     }
     
     /// <summary>
@@ -129,14 +138,83 @@ public class FinishLine : MonoBehaviour
             // Check if all bolts are required
             if (requireAllBolts && gameManager != null)
             {
-                if (gameManager.totalBoltsCollected < gameManager.boltsRequiredToProgress)
+                // Get total bolts in level
+                int totalBoltsInLevel = GetTotalBoltsInLevel();
+                
+                if (gameManager.totalBoltsCollected < totalBoltsInLevel)
                 {
-                    Debug.Log($"Need {gameManager.boltsRequiredToProgress} lightning bolts! You have {gameManager.totalBoltsCollected}.");
+                    Debug.Log($"Need all {totalBoltsInLevel} lightning bolts! You have {gameManager.totalBoltsCollected}.");
+                    
+                    // Shake lightning bolts to signal player needs to collect them
+                    ShakeLightningBolts();
                     return; // Don't complete if not enough bolts
                 }
             }
             
             CompleteLevel();
+        }
+    }
+    
+    /// <summary>
+    /// Get total number of lightning bolts in the level
+    /// </summary>
+    int GetTotalBoltsInLevel()
+    {
+        // Count all bolts in the scene (collected + uncollected)
+        LightningBolt[] allBolts = FindObjectsByType<LightningBolt>(FindObjectsSortMode.None);
+        int total = 0;
+        
+        // Count uncollected bolts
+        foreach (LightningBolt bolt in allBolts)
+        {
+            if (bolt != null && !bolt.isCollected)
+            {
+                total += bolt.boltValue;
+            }
+        }
+        
+        // Add collected bolts from GameManager
+        if (gameManager != null)
+        {
+            total += gameManager.totalBoltsCollected;
+        }
+        
+        // If no bolts found, use GameManager's count as fallback
+        if (total == 0 && gameManager != null)
+        {
+            // Try to get from LightningBoltCounter which knows the total
+            LightningBoltCounter counter = FindFirstObjectByType<LightningBoltCounter>();
+            if (counter != null)
+            {
+                // The counter should have the total, but we'll use a different approach
+                // Count all bolts that were ever in the scene
+                total = gameManager.totalBoltsCollected;
+                // Add remaining uncollected
+                foreach (LightningBolt bolt in allBolts)
+                {
+                    if (bolt != null && !bolt.isCollected)
+                    {
+                        total += bolt.boltValue;
+                    }
+                }
+            }
+        }
+        
+        return total;
+    }
+    
+    /// <summary>
+    /// Shake lightning bolts left and right twice to signal player needs to collect them
+    /// </summary>
+    void ShakeLightningBolts()
+    {
+        LightningBolt[] allBolts = FindObjectsByType<LightningBolt>(FindObjectsSortMode.None);
+        foreach (LightningBolt bolt in allBolts)
+        {
+            if (bolt != null && !bolt.isCollected)
+            {
+                bolt.StartShakeAnimation();
+            }
         }
     }
     
@@ -162,17 +240,22 @@ public class FinishLine : MonoBehaviour
     /// </summary>
     void HandleLevelCompletion()
     {
-        if (!string.IsNullOrEmpty(nextLevelSceneName))
+        // Show conclusion screen
+        if (conclusionScreen != null)
         {
-            // Load next level
-            UnityEngine.SceneManagement.SceneManager.LoadScene(nextLevelSceneName);
+            conclusionScreen.ShowConclusionScreen();
         }
         else
         {
-            // Return to menu or show win message
-            Debug.Log("Level Complete! Returning to menu...");
-            // You can add menu scene loading here if you have one
-            // UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+            // Fallback: load next level or return to menu
+            if (!string.IsNullOrEmpty(nextLevelSceneName))
+            {
+                UnityEngine.SceneManagement.SceneManager.LoadScene(nextLevelSceneName);
+            }
+            else
+            {
+                Debug.Log("Level Complete! Returning to menu...");
+            }
         }
     }
     

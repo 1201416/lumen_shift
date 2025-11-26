@@ -23,7 +23,7 @@ public class DayNightToggle : MonoBehaviour
         // Find GameManager if not assigned
         if (gameManager == null)
         {
-            gameManager = FindObjectOfType<GameManager>();
+            gameManager = FindFirstObjectByType<GameManager>();
         }
         
         // Setup button click listener

@@ -70,39 +70,41 @@ public class CameraFollow : MonoBehaviour
         // Get camera viewport bounds
         float cameraHalfWidth = cam.orthographicSize * cam.aspect;
         
-        // Calculate where player is relative to camera viewport
-        float playerOffsetFromCenter = targetX - transform.position.x;
-        float normalizedOffset = playerOffsetFromCenter / cameraHalfWidth; // -1 to 1
+        // Calculate desired camera X position
+        float desiredX = targetX; // Default: keep player centered
         
-        // Calculate desired camera X position based on player position
-        float desiredX = transform.position.x;
-        
-        // If player is beyond the follow threshold, move camera
-        if (Mathf.Abs(normalizedOffset) > followThreshold)
-        {
-            // Calculate desired camera position
-            desiredX = targetX - (normalizedOffset > 0 ? followThreshold : -followThreshold) * cameraHalfWidth;
-        }
-        
-        // Apply bounds if enabled - ensure camera doesn't show empty space
+        // Apply bounds if enabled
         if (useBounds)
         {
-            // Clamp camera center to bounds (minX and maxX are already calculated as camera centers)
-            // This ensures left edge is at levelStartX and right edge is at levelEndX
+            // Try to center the player
+            desiredX = targetX;
+            
+            // Calculate camera edges if we center on player
+            float leftEdgeIfCentered = desiredX - cameraHalfWidth;
+            float rightEdgeIfCentered = desiredX + cameraHalfWidth;
+            
+            // Check if centering would show empty space on left
+            if (leftEdgeIfCentered < minX)
+            {
+                // Can't show left side - align left edge to minX
+                desiredX = minX + cameraHalfWidth;
+            }
+            
+            // Check if centering would show empty space on right
+            if (rightEdgeIfCentered > maxX)
+            {
+                // Can't show right side - align right edge to maxX
+                desiredX = maxX - cameraHalfWidth;
+            }
+            
+            // Clamp to bounds (minX and maxX are camera center positions)
             desiredX = Mathf.Clamp(desiredX, minX, maxX);
             targetY = Mathf.Clamp(targetY, minY + cam.orthographicSize, maxY - cam.orthographicSize);
         }
         else
         {
-            // Even without bounds, ensure we don't show empty space
-            // This is a safety check
-            float currentLeft = transform.position.x - cameraHalfWidth;
-            float currentRight = transform.position.x + cameraHalfWidth;
-            
-            if (currentLeft < 0)
-            {
-                desiredX = cameraHalfWidth; // Align left edge to 0
-            }
+            // Without bounds, keep player centered
+            desiredX = targetX;
         }
         
         // Smoothly move camera

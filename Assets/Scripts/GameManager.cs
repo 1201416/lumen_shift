@@ -15,7 +15,7 @@ public class GameManager : MonoBehaviour
     [Header("Time of Day")]
     public bool isDayTime = true;
     public float dayNightCycleDuration = 60f; // Seconds for full cycle
-    private float cycleTimer = 0f;
+    // cycleTimer removed - not used (automatic cycling is commented out)
     
     [Header("Events")]
     public System.Action<bool> OnTimeOfDayChanged;
@@ -24,6 +24,7 @@ public class GameManager : MonoBehaviour
     
     private List<LightningBolt> allBolts = new List<LightningBolt>();
     private List<BoxBlock> allBoxes = new List<BoxBlock>();
+    private List<Monster> allMonsters = new List<Monster>();
 
     void Start()
     {
@@ -34,17 +35,19 @@ public class GameManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Refresh lists of all bolts and boxes in the scene
+    /// Refresh lists of all bolts, boxes, and monsters in the scene
     /// Call this after generating new level content
     /// </summary>
     public void RefreshAllObjects()
     {
         allBolts.Clear();
         allBoxes.Clear();
+        allMonsters.Clear();
         
-        // Find all collectibles and blocks in the scene
-        allBolts.AddRange(FindObjectsOfType<LightningBolt>());
-        allBoxes.AddRange(FindObjectsOfType<BoxBlock>());
+        // Find all collectibles, blocks, and monsters in the scene
+        allBolts.AddRange(FindObjectsByType<LightningBolt>(FindObjectsSortMode.None));
+        allBoxes.AddRange(FindObjectsByType<BoxBlock>(FindObjectsSortMode.None));
+        allMonsters.AddRange(FindObjectsByType<Monster>(FindObjectsSortMode.None));
     }
 
     void Update()
@@ -60,8 +63,9 @@ public class GameManager : MonoBehaviour
         }
         */
         
-        // Manual toggle with T key (for testing) - using new Input System
-        if (Keyboard.current != null && Keyboard.current.tKey.wasPressedThisFrame)
+        // Manual toggle with SHIFT key - using new Input System
+        if (Keyboard.current != null && 
+            (Keyboard.current.leftShiftKey.wasPressedThisFrame || Keyboard.current.rightShiftKey.wasPressedThisFrame))
         {
             ToggleDayNight();
         }
@@ -117,6 +121,15 @@ public class GameManager : MonoBehaviour
             if (box != null)
             {
                 box.SetTimeOfDay(isDay);
+            }
+        }
+        
+        // Notify all monsters
+        foreach (var monster in allMonsters)
+        {
+            if (monster != null)
+            {
+                monster.SetTimeOfDay(isDay);
             }
         }
         

@@ -27,15 +27,19 @@ public class LightningBolt : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private CircleCollider2D circleCollider;
     private Vector3 startPosition;
-    private bool isCollected = false;
+    public bool isCollected { get; private set; } = false;
     private bool isDayTime = true;
     private float floatTimer = 0f;
+    private bool isShaking = false;
+    private float shakeTimer = 0f;
+    private Vector3 originalPosition;
 
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         circleCollider = GetComponent<CircleCollider2D>();
         startPosition = transform.position;
+        originalPosition = startPosition;
         
         SetupLightningBolt();
     }
@@ -129,7 +133,7 @@ public class LightningBolt : MonoBehaviour
     void Start()
     {
         // Check GameManager for initial time state
-        GameManager gameManager = FindObjectOfType<GameManager>();
+        GameManager gameManager = FindFirstObjectByType<GameManager>();
         if (gameManager != null)
         {
             isDayTime = gameManager.isDayTime;
@@ -147,13 +151,50 @@ public class LightningBolt : MonoBehaviour
     {
         if (isCollected) return;
         
-        // Rotate the lightning bolt
-        transform.Rotate(0f, 0f, rotationSpeed * Time.deltaTime);
-        
-        // Float up and down
-        floatTimer += Time.deltaTime * floatSpeed;
-        float yOffset = Mathf.Sin(floatTimer) * floatAmplitude;
-        transform.position = startPosition + new Vector3(0f, yOffset, 0f);
+        // Handle shake animation
+        if (isShaking)
+        {
+            shakeTimer += Time.deltaTime;
+            float shakeDuration = 0.5f; // Total duration for 2 shakes (left-right-left-right)
+            float shakeAmount = 0.3f; // How far to shake
+            float shakeSpeed = 20f; // Speed of shake
+            
+            if (shakeTimer < shakeDuration)
+            {
+                // Shake left and right twice
+                float xOffset = Mathf.Sin(shakeTimer * shakeSpeed) * shakeAmount;
+                transform.position = originalPosition + new Vector3(xOffset, 0f, 0f);
+            }
+            else
+            {
+                // Stop shaking
+                isShaking = false;
+                shakeTimer = 0f;
+                transform.position = originalPosition;
+            }
+        }
+        else
+        {
+            // Normal rotation and floating
+            transform.Rotate(0f, 0f, rotationSpeed * Time.deltaTime);
+            
+            // Float up and down
+            floatTimer += Time.deltaTime * floatSpeed;
+            float yOffset = Mathf.Sin(floatTimer) * floatAmplitude;
+            transform.position = startPosition + new Vector3(0f, yOffset, 0f);
+            originalPosition = startPosition + new Vector3(0f, yOffset, 0f);
+        }
+    }
+    
+    /// <summary>
+    /// Start shake animation - shakes left and right twice
+    /// </summary>
+    public void StartShakeAnimation()
+    {
+        if (isCollected) return;
+        isShaking = true;
+        shakeTimer = 0f;
+        originalPosition = transform.position;
     }
 
     /// <summary>
@@ -167,19 +208,18 @@ public class LightningBolt : MonoBehaviour
 
     void UpdateVisuals()
     {
-        // Lightning bolts are ONLY visible at night
-        if (!isDayTime)
+        // Lightning bolts are available at any point (day or night)
+        spriteRenderer.enabled = true;
+        circleCollider.enabled = true;
+        
+        // Use glow color at night, normal color during day
+        if (!isDayTime && glowsAtNight)
         {
-            // Visible at night - use glow color
-            spriteRenderer.enabled = true;
-            spriteRenderer.color = glowsAtNight ? nightGlowColor : lightningColor;
-            circleCollider.enabled = true;
+            spriteRenderer.color = nightGlowColor;
         }
         else
         {
-            // Hidden during day
-            spriteRenderer.enabled = false;
-            circleCollider.enabled = false;
+            spriteRenderer.color = lightningColor;
         }
     }
 
@@ -201,7 +241,7 @@ public class LightningBolt : MonoBehaviour
         isCollected = true;
         
         // Notify game manager or player that bolt was collected
-        GameManager gameManager = FindObjectOfType<GameManager>();
+        GameManager gameManager = FindFirstObjectByType<GameManager>();
         if (gameManager != null)
         {
             gameManager.CollectLightningBolt(boltValue);

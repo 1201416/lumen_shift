@@ -29,24 +29,69 @@ public class PlayerController : MonoBehaviour
         }
         
         // Configure Rigidbody2D for platformer
-        rb.freezeRotation = true;
-        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.bodyType = RigidbodyType2D.Dynamic; // Must be Dynamic for physics collisions
+        rb.freezeRotation = true; // Prevent rotation (character should stay upright)
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous; // Better collision detection
+        rb.gravityScale = 3f; // Set gravity if not already set
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate; // Smooth movement
         
         // Ensure we have a sprite renderer for visibility
-        if (GetComponent<SpriteRenderer>() == null)
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (sr == null)
         {
-            SpriteRenderer sr = gameObject.AddComponent<SpriteRenderer>();
-            sr.color = Color.blue;
-            sr.sprite = CreateDefaultPlayerSprite();
+            sr = gameObject.AddComponent<SpriteRenderer>();
         }
         
-        // Ensure we have a collider - use BoxCollider2D for 3x2 shape
-        // Player is 3x2: width is 3/4, height is 1/2 of a block (0.75 x 0.5 units)
-        if (GetComponent<Collider2D>() == null)
+        // Only create and set default sprite if no sprite is already assigned
+        // This allows manually assigned sprites (like Virtual Guy) to be preserved
+        if (sr.sprite == null)
         {
-            BoxCollider2D col = gameObject.AddComponent<BoxCollider2D>();
-            col.size = new Vector2(0.75f, 0.5f); // 3x2: width 3/4, height 1/2
+            Sprite playerSprite = CreateDefaultPlayerSprite();
+            sr.sprite = playerSprite;
         }
+        
+        sr.color = Color.white; // Use white to show sprite colors properly
+        sr.sortingOrder = 1; // Ensure character is above ground
+        sr.drawMode = SpriteDrawMode.Simple;
+        
+        // Ensure we have a collider - check for existing collider first
+        Collider2D existingCollider = GetComponent<Collider2D>();
+        if (existingCollider == null)
+        {
+            // No collider exists, add BoxCollider2D
+            BoxCollider2D col = gameObject.AddComponent<BoxCollider2D>();
+            // Size based on sprite: 28/32 = 0.875, 18/32 = 0.5625
+            col.size = new Vector2(0.875f, 0.5625f); // Proportional to sprite size
+            col.isTrigger = false; // Must be solid for physics
+            col.usedByEffector = false; // Don't use physics materials that might affect collision
+        }
+        else
+        {
+            // Collider exists (like CapsuleCollider2D), ensure it's configured correctly
+            existingCollider.isTrigger = false; // Must be solid for physics
+            
+            // Auto-size collider to match sprite if sprite exists
+            if (sr.sprite != null)
+            {
+                Vector2 spriteSize = sr.sprite.bounds.size;
+                if (existingCollider is BoxCollider2D boxCol)
+                {
+                    boxCol.size = spriteSize;
+                    boxCol.usedByEffector = false;
+                }
+                else if (existingCollider is CapsuleCollider2D capsuleCol)
+                {
+                    // For capsule, use the smaller dimension for radius, height is the larger
+                    float minDim = Mathf.Min(spriteSize.x, spriteSize.y);
+                    float maxDim = Mathf.Max(spriteSize.x, spriteSize.y);
+                    capsuleCol.size = new Vector2(minDim, maxDim);
+                    capsuleCol.usedByEffector = false;
+                }
+            }
+        }
+        
+        // Ensure transform rotation is correct (facing right, not sideways)
+        transform.rotation = Quaternion.identity;
     }
     
     /// <summary>
@@ -56,10 +101,12 @@ public class PlayerController : MonoBehaviour
     Sprite CreateDefaultPlayerSprite()
     {
         // Player should be 3x2: width is 3/4, height is 1/2 of a block
+        // Make it 75% of original size for better visibility
+        // Original: 24x16, but we'll use a slightly larger base for better detail
+        // Using 32x20 as base, then 75% would be 24x15, but let's use 28x18 for better detail
         // If block is 32 pixels (at 32 pixels per unit):
-        // width = 24 pixels (3/4 of 32), height = 16 pixels (1/2 of 32)
-        int width = 24;  // 3/4 of block width
-        int height = 16; // 1/2 of block height
+        int width = 28;  // Good balance: visible but not too big
+        int height = 18; // Maintains 3x2 ratio approximately
         Texture2D texture = new Texture2D(width, height);
         Color[] pixels = new Color[width * height];
         
@@ -195,7 +242,8 @@ public class PlayerController : MonoBehaviour
         
         texture.SetPixels(pixels);
         texture.Apply();
-        texture.filterMode = FilterMode.Bilinear;
+        texture.filterMode = FilterMode.Point; // Use Point filter for pixel art clarity
+        texture.wrapMode = TextureWrapMode.Clamp;
         
         // Use 32 pixels per unit to match block size
         return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 32f);
@@ -214,7 +262,9 @@ public class PlayerController : MonoBehaviour
             if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
                 horizontal = 1f;
             
-            jumpPressed = Keyboard.current.spaceKey.wasPressedThisFrame;
+            // Jump with space bar OR up arrow
+            jumpPressed = Keyboard.current.spaceKey.wasPressedThisFrame || 
+                         Keyboard.current.upArrowKey.wasPressedThisFrame;
         }
 
         // Basic horizontal movement
@@ -225,14 +275,18 @@ public class PlayerController : MonoBehaviour
         if (horizontal != 0)
         {
             // Check if there's a wall in the direction we're trying to move
-            BoxCollider2D playerCollider = GetComponent<BoxCollider2D>();
+            Collider2D playerCollider = GetComponent<Collider2D>();
             if (playerCollider != null)
             {
                 Vector2 rayOrigin = new Vector2(
                     transform.position.x,
                     transform.position.y
                 );
-                float rayDistance = playerCollider.size.x * 0.5f + 0.1f;
+                
+                // Get collider bounds for ray distance calculation
+                float colliderWidth = playerCollider.bounds.size.x;
+                float rayDistance = colliderWidth * 0.5f + 0.1f;
+                
                 RaycastHit2D wallCheck = Physics2D.Raycast(rayOrigin, new Vector2(horizontal, 0f), rayDistance);
                 
                 // If we're pushing against a wall, allow sliding up/down
@@ -259,6 +313,11 @@ public class PlayerController : MonoBehaviour
                     }
                 }
             }
+            else
+            {
+                // No collider - just move normally
+                rb.linearVelocity = new Vector2(horizontal * currentMoveSpeed, rb.linearVelocity.y);
+            }
         }
         else
         {
@@ -282,12 +341,12 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void TryStepUp(float horizontal, float moveSpeed)
     {
-        BoxCollider2D playerCollider = GetComponent<BoxCollider2D>();
+        Collider2D playerCollider = GetComponent<Collider2D>();
         if (playerCollider == null) return;
         
-        // Calculate player bounds
-        float playerHalfWidth = playerCollider.size.x * 0.5f;
-        float playerHalfHeight = playerCollider.size.y * 0.5f;
+        // Calculate player bounds using bounds (works with any collider type)
+        float playerHalfWidth = playerCollider.bounds.size.x * 0.5f;
+        float playerHalfHeight = playerCollider.bounds.size.y * 0.5f;
         float playerBottom = transform.position.y - playerHalfHeight;
         
         // Cast multiple rays forward at different heights to detect steps
@@ -321,10 +380,10 @@ public class PlayerController : MonoBehaviour
                             blockTop + playerHalfHeight + 0.02f
                         );
                         
-                        // Use OverlapBox to check if player fits
+                        // Use OverlapBox to check if player fits (use bounds size)
                         Collider2D overlap = Physics2D.OverlapBox(
                             checkPosition,
-                            playerCollider.size * 0.95f,
+                            playerCollider.bounds.size * 0.95f,
                             0f
                         );
                         
@@ -363,7 +422,7 @@ public class PlayerController : MonoBehaviour
             // If the contact point is below the player center, we're grounded
             if (contact.normal.y > 0.5f) // Normal pointing up means we hit something below
             {
-                if (collision.gameObject.CompareTag("Ground") || 
+                if ( 
                     collision.gameObject.GetComponent<FloorBlock>() != null ||
                     collision.gameObject.GetComponent<BoxBlock>() != null ||
                     collision.gameObject.name.Contains("Boundary")) // Check boundaries by name
@@ -451,7 +510,7 @@ public class PlayerController : MonoBehaviour
         {
             if (contact.normal.y > 0.5f)
             {
-                if (collision.gameObject.CompareTag("Ground") || 
+                if ( 
                     collision.gameObject.GetComponent<FloorBlock>() != null ||
                     collision.gameObject.GetComponent<BoxBlock>() != null ||
                     collision.gameObject.name.Contains("Boundary"))
@@ -467,7 +526,7 @@ public class PlayerController : MonoBehaviour
     {
         // When leaving ground, mark as not grounded
         // This prevents double jumping
-        if (collision.gameObject.CompareTag("Ground") || 
+        if ( 
             collision.gameObject.GetComponent<FloorBlock>() != null ||
             collision.gameObject.GetComponent<BoxBlock>() != null ||
             collision.gameObject.name.Contains("Boundary"))

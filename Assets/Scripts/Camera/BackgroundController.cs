@@ -35,7 +35,7 @@ public class BackgroundController : MonoBehaviour
         // Find GameManager if not assigned
         if (gameManager == null)
         {
-            gameManager = FindObjectOfType<GameManager>();
+            gameManager = FindFirstObjectByType<GameManager>();
         }
         
         // Initialize current color
@@ -69,7 +69,7 @@ public class BackgroundController : MonoBehaviour
     /// <summary>
     /// Update background color based on time of day with smooth transition
     /// </summary>
-    void UpdateBackground(bool isDay)
+    public void UpdateBackground(bool isDay)
     {
         if (targetCamera == null) return;
         

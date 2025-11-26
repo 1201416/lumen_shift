@@ -41,7 +41,7 @@ public class BoxBlock : MonoBehaviour
     void Start()
     {
         // Check GameManager for initial time state
-        GameManager gameManager = FindObjectOfType<GameManager>();
+        GameManager gameManager = FindFirstObjectByType<GameManager>();
         if (gameManager != null && reactsToTimeOfDay)
         {
             isDayTime = gameManager.isDayTime;
@@ -140,10 +140,22 @@ public class BoxBlock : MonoBehaviour
         // Handle visibility based on day/night
         if (reactsToTimeOfDay)
         {
-            // If visibleDuringDay is true, show during day. If false, show during night.
-            bool shouldBeVisible = visibleDuringDay ? isDayTime : !isDayTime;
-            spriteRenderer.enabled = shouldBeVisible;
-            boxCollider.enabled = shouldBeVisible;
+            // Day-only blocks: visible only during day
+            // Night-only blocks: visible only during night
+            if (visibleDuringDay)
+            {
+                // Day-only blocks: visible during day only
+                bool shouldBeVisible = isDayTime;
+                spriteRenderer.enabled = shouldBeVisible;
+                boxCollider.enabled = shouldBeVisible;
+            }
+            else
+            {
+                // Night-only blocks: visible during night only
+                bool shouldBeVisible = !isDayTime;
+                spriteRenderer.enabled = shouldBeVisible;
+                boxCollider.enabled = shouldBeVisible;
+            }
         }
         else
         {
@@ -184,8 +196,8 @@ public class BoxBlock : MonoBehaviour
         if (spriteRenderer != null)
         {
             if (boxSprite != null)
-            {
-                spriteRenderer.sprite = boxSprite;
+        {
+            spriteRenderer.sprite = boxSprite;
             }
             else if (Application.isPlaying)
             {

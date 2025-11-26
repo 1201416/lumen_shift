@@ -40,7 +40,7 @@ public class Cloud : MonoBehaviour
     void Start()
     {
         // Check GameManager for initial time state
-        GameManager gameManager = FindObjectOfType<GameManager>();
+        GameManager gameManager = FindFirstObjectByType<GameManager>();
         if (gameManager != null)
         {
             isDayTime = gameManager.isDayTime;

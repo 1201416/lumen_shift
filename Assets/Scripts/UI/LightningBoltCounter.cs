@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem.UI;
 
 /// <summary>
 /// UI component to display lightning bolt count in the top right corner
@@ -12,26 +13,57 @@ public class LightningBoltCounter : MonoBehaviour
     public Text counterText;
     
     [Header("Display Settings")]
-    public string displayFormat = "Lightning: {0}"; // Format: "Lightning: 5"
-    public Color textColor = Color.yellow;
-    public int fontSize = 24;
+    public string displayFormat = "⚡ {0}/{1}"; // Format: "⚡ 5/12"
+    public Color textColor = new Color(1f, 0.9f, 0f); // Bright yellow/gold
+    public int fontSize = 36; // Larger font for visibility
     
     private Canvas canvas;
     private RectTransform counterRect;
+    private Text shadowText; // Shadow text for better visibility
+    private int totalBoltsInLevel = 12; // Total number of lightning bolts in the level
     
     void Start()
     {
         // Find or create GameManager
         if (gameManager == null)
         {
-            gameManager = FindObjectOfType<GameManager>();
+            gameManager = FindFirstObjectByType<GameManager>();
         }
         
-        // Find or create Canvas
-        canvas = FindObjectOfType<Canvas>();
-        if (canvas == null)
+        // Find or create Canvas attached to camera
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
         {
-            CreateCanvas();
+            mainCamera = FindFirstObjectByType<Camera>();
+        }
+        
+        if (mainCamera != null)
+        {
+            // Check if camera already has a canvas
+            canvas = mainCamera.GetComponentInChildren<Canvas>();
+            if (canvas == null)
+            {
+                CreateCanvasForCamera(mainCamera);
+            }
+            else
+            {
+                canvas = mainCamera.GetComponentInChildren<Canvas>();
+            }
+        }
+        else
+        {
+            // Fallback: create overlay canvas
+            canvas = FindFirstObjectByType<Canvas>();
+            if (canvas == null)
+            {
+                CreateCanvas();
+            }
+        }
+        
+        // Ensure canvas is set correctly
+        if (canvas != null)
+        {
+            canvas.sortingOrder = 10; // High sorting order to ensure visibility
         }
         
         // Find or create text component
@@ -47,6 +79,9 @@ public class LightningBoltCounter : MonoBehaviour
             // Set initial count
             UpdateCounter(gameManager.totalBoltsCollected);
         }
+        
+        // Get total bolt count from GameManager
+        RefreshTotalBolts();
     }
     
     void OnDestroy()
@@ -58,7 +93,22 @@ public class LightningBoltCounter : MonoBehaviour
     }
     
     /// <summary>
-    /// Create a Canvas if one doesn't exist
+    /// Create a Canvas attached to the camera (ScreenSpaceCamera mode)
+    /// </summary>
+    void CreateCanvasForCamera(Camera targetCamera)
+    {
+        GameObject canvasObj = new GameObject("CameraCanvas");
+        canvasObj.transform.SetParent(targetCamera.transform, false);
+        canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceCamera;
+        canvas.worldCamera = targetCamera;
+        canvas.planeDistance = 1f; // Close to camera
+        canvasObj.AddComponent<CanvasScaler>();
+        canvasObj.AddComponent<GraphicRaycaster>();
+    }
+    
+    /// <summary>
+    /// Create a Canvas if one doesn't exist (fallback)
     /// </summary>
     void CreateCanvas()
     {
@@ -68,12 +118,29 @@ public class LightningBoltCounter : MonoBehaviour
         canvasObj.AddComponent<CanvasScaler>();
         canvasObj.AddComponent<GraphicRaycaster>();
         
-        // Create EventSystem if it doesn't exist
-        if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
+        // Create or update EventSystem to use Input System
+        UnityEngine.EventSystems.EventSystem eventSystem = FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
+        if (eventSystem == null)
         {
             GameObject eventSystemObj = new GameObject("EventSystem");
-            eventSystemObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            eventSystemObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            eventSystem = eventSystemObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            // Use InputSystemUIInputModule for Input System compatibility
+            eventSystemObj.AddComponent<InputSystemUIInputModule>();
+        }
+        else
+        {
+            // If EventSystem exists but uses old input module, replace it
+            var oldModule = eventSystem.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            if (oldModule != null)
+            {
+                Destroy(oldModule);
+                eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
+            }
+            // If no input module exists, add InputSystemUIInputModule
+            else if (eventSystem.GetComponent<InputSystemUIInputModule>() == null)
+            {
+                eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
+            }
         }
     }
     
@@ -87,11 +154,33 @@ public class LightningBoltCounter : MonoBehaviour
         
         // Use legacy Text component
         counterText = textObj.AddComponent<Text>();
-        counterText.text = string.Format(displayFormat, 0);
+        RefreshTotalBolts();
+        counterText.text = string.Format(displayFormat, 0, totalBoltsInLevel);
         counterText.color = textColor;
         counterText.fontSize = fontSize;
-        counterText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        counterText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         counterText.alignment = TextAnchor.UpperRight;
+        counterText.fontStyle = FontStyle.Bold; // Make it bold for better visibility
+        
+        // Add outline/shadow effect by creating a duplicate behind
+        GameObject shadowObj = new GameObject("Shadow");
+        shadowObj.transform.SetParent(textObj.transform, false);
+        RectTransform shadowRect = shadowObj.AddComponent<RectTransform>();
+        shadowRect.anchorMin = Vector2.zero;
+        shadowRect.anchorMax = Vector2.one;
+        shadowRect.sizeDelta = Vector2.zero;
+        shadowRect.anchoredPosition = new Vector2(2f, -2f); // Offset for shadow
+        
+        this.shadowText = shadowObj.AddComponent<Text>();
+        this.shadowText.text = string.Format(displayFormat, 0, totalBoltsInLevel);
+        this.shadowText.color = Color.black;
+        this.shadowText.fontSize = fontSize;
+        this.shadowText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        this.shadowText.alignment = TextAnchor.UpperRight;
+        this.shadowText.fontStyle = FontStyle.Bold;
+        
+        // Make shadow not interactable
+        shadowObj.AddComponent<CanvasGroup>().interactable = false;
         
         // Position in top right corner
         counterRect = textObj.GetComponent<RectTransform>();
@@ -100,7 +189,21 @@ public class LightningBoltCounter : MonoBehaviour
             counterRect.anchorMin = new Vector2(1f, 1f);
             counterRect.anchorMax = new Vector2(1f, 1f);
             counterRect.pivot = new Vector2(1f, 1f);
-            counterRect.anchoredPosition = new Vector2(-20f, -20f); // 20px from top-right corner
+            counterRect.anchoredPosition = new Vector2(-30f, -30f); // 30px from top-right corner
+            counterRect.sizeDelta = new Vector2(200f, 50f); // Ensure text has space
+        }
+    }
+    
+    /// <summary>
+    /// Refresh total bolts count from GameManager
+    /// </summary>
+    void RefreshTotalBolts()
+    {
+        if (gameManager != null)
+        {
+            // Count all lightning bolts in the scene
+            LightningBolt[] allBolts = FindObjectsByType<LightningBolt>(FindObjectsSortMode.None);
+            totalBoltsInLevel = allBolts.Length;
         }
     }
     
@@ -109,9 +212,19 @@ public class LightningBoltCounter : MonoBehaviour
     /// </summary>
     void UpdateCounter(int count)
     {
+        // Refresh total bolts count (in case level was regenerated)
+        RefreshTotalBolts();
+        
+        string displayText = string.Format(displayFormat, count, totalBoltsInLevel);
+        
         if (counterText != null)
         {
-            counterText.text = string.Format(displayFormat, count);
+            counterText.text = displayText;
+        }
+        
+        if (shadowText != null)
+        {
+            shadowText.text = displayText;
         }
     }
 }

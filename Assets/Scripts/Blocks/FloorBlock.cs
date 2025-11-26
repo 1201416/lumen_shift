@@ -205,8 +205,8 @@ public class FloorBlock : MonoBehaviour
         if (spriteRenderer != null)
         {
             if (floorSprite != null)
-            {
-                spriteRenderer.sprite = floorSprite;
+        {
+            spriteRenderer.sprite = floorSprite;
             }
             else if (Application.isPlaying)
             {

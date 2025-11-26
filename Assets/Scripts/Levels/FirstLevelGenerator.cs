@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
 /// <summary>
 /// Generates the first level/tutorial level for new players.
@@ -18,6 +20,10 @@ public class FirstLevelGenerator : MonoBehaviour
     public GameObject floorBlockPrefab;
     public GameObject boxBlockPrefab;
     public GameObject lightningBoltPrefab;
+    [Tooltip("Player prefab to instantiate. If not set, will find existing Player or create a new one.")]
+    public GameObject playerPrefab;
+    [Tooltip("Player sprite to use when creating player from code. If not set, will try to load 'Jump' sprite from PixelAdventure.")]
+    public Sprite playerSprite;
     
     [Header("Parent Objects (Optional)")]
     public Transform blocksParent;
@@ -70,13 +76,25 @@ public class FirstLevelGenerator : MonoBehaviour
 
         // Place lightning bolts (collectibles)
         PlaceLightningBolts();
+
+        // Place monsters (death points) in the middle of the level
+        PlaceMonsters();
         
         // Place finish line at the end of the level
         PlaceFinishLine();
 
         // Create player at start position (on top of first grass block, safe from falling)
-        // Position: x=1 (1 block from left), y=1.5 (on top of grass which is at y~0.5)
-        CreatePlayer(new Vector3(1f * blockSize, 1.5f, 0f));
+        // Calculate proper spawn position based on ground height
+        float playerStartX = 1f * blockSize;
+        float startY = -0.5f;
+        float endY = 0.5f;
+        float leftmostX = -5f * blockSize;
+        float fillUntilX = playerStartX + (2f * blockSize);
+        float progress = Mathf.Max(0f, (playerStartX - leftmostX) / (fillUntilX - leftmostX + 1f));
+        float baseY = startY + (progress * (endY - startY) * 0.1f); // Match ground calculation
+        float grassHeight = 0.1f; // Approximate grass height
+        float playerSpawnY = (baseY + grassHeight) * blockSize + 0.5f; // On top of grass + 0.5 units
+        CreatePlayer(new Vector3(playerStartX, playerSpawnY, 0f));
 
         // Setup camera to follow player (CameraFollow script will handle it)
         SetupCamera();
@@ -84,32 +102,52 @@ public class FirstLevelGenerator : MonoBehaviour
         // Ensure GameManager exists in scene
         EnsureGameManagerExists();
         
+        // Fix Input System compatibility (must be done early)
+        SetupInputSystemFixer();
+        
         // Setup background controller for day/night background changes
         SetupBackgroundController();
         
         // Setup UI for lightning bolt counter
         SetupLightningBoltCounter();
         
+        // Setup death screen
+        SetupDeathScreen();
+        
         // Setup clouds in the sky
         SetupClouds();
         
-        // Refresh GameManager to find all new boxes
+        // Refresh GameManager to find all new boxes and monsters
         RefreshGameManager();
-        
+
         Debug.Log("First Level generated successfully! Welcome to Lumen-Shift!");
     }
     
     /// <summary>
-    /// Ensure GameManager exists in the scene (needed for T key toggle)
+    /// Ensure GameManager exists in the scene (needed for SHIFT key toggle)
     /// </summary>
     void EnsureGameManagerExists()
     {
-        GameManager gameManager = FindObjectOfType<GameManager>();
+        GameManager gameManager = FindFirstObjectByType<GameManager>();
         if (gameManager == null)
         {
             GameObject gmObject = new GameObject("GameManager");
             gameManager = gmObject.AddComponent<GameManager>();
-            Debug.Log("GameManager created automatically - T key should now work!");
+            Debug.Log("GameManager created automatically - SHIFT key should now work!");
+        }
+    }
+    
+    /// <summary>
+    /// Setup InputSystemFixer to ensure all EventSystems use Input System
+    /// </summary>
+    void SetupInputSystemFixer()
+    {
+        // Check if InputSystemFixer already exists
+        InputSystemFixer existingFixer = FindFirstObjectByType<InputSystemFixer>();
+        if (existingFixer == null)
+        {
+            GameObject fixerObj = new GameObject("InputSystemFixer");
+            fixerObj.AddComponent<InputSystemFixer>();
         }
     }
     
@@ -128,22 +166,48 @@ public class FirstLevelGenerator : MonoBehaviour
             }
             
             bgController.targetCamera = mainCamera;
-            bgController.gameManager = FindObjectOfType<GameManager>();
+            bgController.gameManager = FindFirstObjectByType<GameManager>();
         }
     }
     
     /// <summary>
-    /// Setup UI counter for lightning bolts in top right corner
+    /// Setup UI counter for lightning bolts in top right corner (attached to camera)
     /// </summary>
     void SetupLightningBoltCounter()
     {
         // Check if counter already exists
-        LightningBoltCounter existingCounter = FindObjectOfType<LightningBoltCounter>();
+        LightningBoltCounter existingCounter = FindFirstObjectByType<LightningBoltCounter>();
         if (existingCounter == null)
         {
+            // Attach to camera so it follows the camera view
+            Camera mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                mainCamera = FindFirstObjectByType<Camera>();
+            }
+            
             GameObject counterObj = new GameObject("LightningBoltCounter");
+            if (mainCamera != null)
+            {
+                counterObj.transform.SetParent(mainCamera.transform, false);
+            }
+            
             LightningBoltCounter counter = counterObj.AddComponent<LightningBoltCounter>();
-            counter.gameManager = FindObjectOfType<GameManager>();
+            counter.gameManager = FindFirstObjectByType<GameManager>();
+        }
+    }
+    
+    /// <summary>
+    /// Setup death screen for respawn functionality
+    /// </summary>
+    void SetupDeathScreen()
+    {
+        // Check if death screen already exists
+        DeathScreen existingDeathScreen = FindFirstObjectByType<DeathScreen>();
+        if (existingDeathScreen == null)
+        {
+            GameObject deathScreenObj = new GameObject("DeathScreen");
+            DeathScreen deathScreen = deathScreenObj.AddComponent<DeathScreen>();
         }
     }
     
@@ -153,7 +217,7 @@ public class FirstLevelGenerator : MonoBehaviour
     void SetupClouds()
     {
         // Check if cloud controller already exists
-        CloudController existingController = FindObjectOfType<CloudController>();
+        CloudController existingController = FindFirstObjectByType<CloudController>();
         if (existingController == null)
         {
             GameObject cloudControllerObj = new GameObject("CloudController");
@@ -171,7 +235,7 @@ public class FirstLevelGenerator : MonoBehaviour
     /// </summary>
     void RefreshGameManager()
     {
-        GameManager gameManager = FindObjectOfType<GameManager>();
+        GameManager gameManager = FindFirstObjectByType<GameManager>();
         if (gameManager != null)
         {
             gameManager.RefreshAllObjects();
@@ -202,40 +266,44 @@ public class FirstLevelGenerator : MonoBehaviour
             }
             
             // Set camera size to show only visibleBlocks (16 blocks = 1/10 of 160)
-            // But make it further away (larger orthographic size) for better resolution
+            // Zoom in 2x by reducing camera size to half (makes player appear 2x bigger)
             float aspectRatio = mainCamera.aspect;
             float desiredHalfWidth = visibleBlocks * 0.5f; // Half of visible blocks
             float calculatedSize = desiredHalfWidth / aspectRatio;
             
-            // Make camera further away (2x zoom out for better resolution)
-            float zoomedOutSize = calculatedSize * 2f;
-            cameraFollow.cameraSize = zoomedOutSize;
-            mainCamera.orthographicSize = zoomedOutSize;
+            // Make camera 2x closer (37.5% of calculated size = 2x zoom)
+            // Original was 75%, now 37.5% = 2x zoom
+            float zoomedInSize = calculatedSize * 0.375f;
+            cameraFollow.cameraSize = zoomedInSize;
+            mainCamera.orthographicSize = zoomedInSize;
             
-            // Calculate camera bounds - level starts at x=0 and ends at x=totalFloorBlocks + extra blocks
-            float levelStartX = 0f;
+            // Calculate camera bounds - level starts at player spawn (x=1) and ends at x=totalFloorBlocks + extra blocks
+            float playerStartX = 1f * blockSize; // Player spawns here - this is where level "starts" visually
             int blocksPerOriginal = 10;
             float subBlockSize = blockSize / blocksPerOriginal;
             float levelEndX = (totalFloorBlocks * blockSize) + (blocksPerOriginal * subBlockSize);
-            float cameraHalfWidth = calculatedSize * aspectRatio;
+            float cameraHalfWidth = zoomedInSize * aspectRatio;
             
             // Set camera bounds to prevent showing empty space
-            // Left bound: camera center can't go below cameraHalfWidth (so left edge is at 0)
+            // Left bound: camera center can't go below playerStartX (so left edge is at playerStartX - cameraHalfWidth)
+            // But we want to start at playerStartX, so minX should allow camera to center on playerStartX
             // Right bound: camera center can't go above levelEndX - cameraHalfWidth (so right edge is at levelEndX)
             cameraFollow.useBounds = true;
-            cameraFollow.minX = levelStartX + cameraHalfWidth; // Left edge of level
+            cameraFollow.minX = playerStartX; // Can't go left of player start position
             cameraFollow.maxX = levelEndX - cameraHalfWidth; // Right edge of level
             cameraFollow.minY = -2f;
             cameraFollow.maxY = 10f;
             
-            // Set initial camera position to start of level (left edge visible)
-            // Camera center should be at cameraHalfWidth so left edge is at 0
-            float initialCameraX = cameraHalfWidth;
+            // Set initial camera position to player start position (centered on player)
+            // Camera should center on player at start
+            float initialCameraX = playerStartX;
             if (playerInstance != null)
             {
-                // Start camera at player position, but clamp to level bounds
+                // Start camera centered on player
+                initialCameraX = playerInstance.transform.position.x;
+                // Clamp to bounds (but should be fine since player starts at playerStartX)
                 initialCameraX = Mathf.Clamp(
-                    playerInstance.transform.position.x,
+                    initialCameraX,
                     cameraFollow.minX,
                     cameraFollow.maxX
                 );
@@ -294,12 +362,18 @@ public class FirstLevelGenerator : MonoBehaviour
         
         // Fill leftmost side BEFORE the main loop to ensure no gaps
         // Start from negative X to fill left side completely - extend further left
+        // Also ensure floor covers player spawn position (x=1) and beyond
         float leftmostX = -5f * blockSize; // Start 5 blocks before 0 to ensure complete coverage
+        float playerStartX = 1f * blockSize; // Player spawns at x=1
+        float fillUntilX = playerStartX + (2f * blockSize); // Fill until 2 blocks after player start to ensure no gap
         int leftBlockIndex = 0;
-        for (float x = leftmostX; x < 0f; x += subBlockSize)
+        
+        // Fill from leftmostX to fillUntilX to ensure no gap at start
+        for (float x = leftmostX; x <= fillUntilX; x += subBlockSize)
         {
-            // Use startY for leftmost blocks (no incline yet)
-            float baseY = startY;
+            // Use startY for leftmost blocks (no incline yet, or very slight incline)
+            float progress = Mathf.Max(0f, (x - leftmostX) / (fillUntilX - leftmostX + 1f));
+            float baseY = startY + (progress * totalHeightDiff * 0.1f); // Very slight incline before main area
             
             // Create multiple layers of dirt to cover bottom
             for (float dirtY = minDirtY; dirtY < baseY * blockSize; dirtY += blockSize)
@@ -320,13 +394,25 @@ public class FirstLevelGenerator : MonoBehaviour
         }
         
         // Main floor generation loop - ensure continuous floor with no gaps
-        float lastBlockX = leftmostX;
-        for (int x = 0; x < totalFloorBlocks; x++)
+        // Start from where we left off to ensure continuity
+        float lastBlockX = fillUntilX;
+        
+        // Calculate starting x index for main loop (start from 0, but skip blocks we already filled)
+        int startXIndex = 0;
+        
+        for (int x = startXIndex; x < totalFloorBlocks; x++)
         {
             // For each original block position, create 10 sub-blocks
             for (int subX = 0; subX < blocksPerOriginal; subX++)
             {
                 float blockX = (x * blockSize) + (subX * subBlockSize);
+                
+                // Skip blocks we already filled in the leftmost section
+                if (blockX <= fillUntilX)
+                {
+                    lastBlockX = blockX; // Update lastBlockX to maintain continuity
+                    continue;
+                }
                 
                 // Ensure no gaps - if there's a gap, fill it
                 if (blockX - lastBlockX > subBlockSize * 1.1f)
@@ -484,11 +570,11 @@ public class FirstLevelGenerator : MonoBehaviour
         
         Debug.Log("Created boundary walls at left and right edges");
     }
-    
+
     /// <summary>
     /// Create platforms and obstacles for the player to navigate
-    /// LEVEL DESIGN: IMPOSSIBLE during day, POSSIBLE during night
-    /// Day has gaps that are too large to jump, night fills those gaps
+    /// LEVEL DESIGN: Minimal blocks during day, many blocks during night
+    /// Level is completable only at night
     /// </summary>
     void CreatePlatforms()
     {
@@ -496,148 +582,479 @@ public class FirstLevelGenerator : MonoBehaviour
         int densityMultiplier = 10;
         float subBlockSize = blockSize / densityMultiplier;
         
-        // DAY-ONLY BLOCKS: Create impossible gaps during day
-        // These create sections that are too far apart to jump
+        // DAY-ONLY BLOCKS: More blocks during day, but still incomplete path
+        // These create a path that cannot be completed during day (requires night blocks)
         
-        // Section 1: Starting platform (day) - small platform
+        // Day platform 1: Starting area - extended
+        for (int i = 0; i < 3 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((1f + i * subBlockSize) * blockSize, 1.0f, 0f), visibleDuringDay: true);
+        }
+        
+        // Day platform 2: First jump area
         for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((5f + i * subBlockSize) * blockSize, 2f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((8f + i * subBlockSize) * blockSize, 1.2f, 0f), visibleDuringDay: true);
         }
         
-        // GAP 1: Impossible jump during day (4 blocks gap)
-        // Section 2: Far platform (day) - too far to reach
+        // Day platform 3: Gap area
         for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((12f + i * subBlockSize) * blockSize, 2.5f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((15f + i * subBlockSize) * blockSize, 1.3f, 0f), visibleDuringDay: true);
         }
         
-        // GAP 2: Another impossible gap
-        // Section 3: Another far platform (day)
-        for (int i = 0; i < 1 * densityMultiplier; i++)
+        // Day platform 4: Mid-level
+        for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((20f + i * subBlockSize) * blockSize, 3.5f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((25f + i * subBlockSize) * blockSize, 1.5f, 0f), visibleDuringDay: true);
         }
         
-        // GAP 3: Large vertical gap
-        // Section 4: High platform (day) - too high to reach
-        for (int i = 0; i < 1 * densityMultiplier; i++)
+        // Day platform 5: Further ahead
+        for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((28f + i * subBlockSize) * blockSize, 5.5f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((35f + i * subBlockSize) * blockSize, 1.4f, 0f), visibleDuringDay: true);
         }
         
-        // GAP 4: Another impossible gap
-        // Section 5: Far right platform (day)
-        for (int i = 0; i < 1 * densityMultiplier; i++)
+        // Day platform 6: Even further
+        for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((40f + i * subBlockSize) * blockSize, 4f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((45f + i * subBlockSize) * blockSize, 1.6f, 0f), visibleDuringDay: true);
         }
         
-        // GAP 5: Final impossible gap before finish
-        // Section 6: Platform near finish (day) - but can't reach finish
-        for (int i = 0; i < 1 * densityMultiplier; i++)
+        // Day platform 7: Late game
+        for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((60f + i * subBlockSize) * blockSize, 3f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((60f + i * subBlockSize) * blockSize, 1.5f, 0f), visibleDuringDay: true);
         }
         
-        // NIGHT-ONLY BLOCKS: Fill all gaps to make level possible
-        // These bridges and platforms appear only at night
+        // Day platform 8: Near end (but gap prevents completion)
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((70f + i * subBlockSize) * blockSize, 1.25f, 0f), visibleDuringDay: true);
+        }
         
-        // Night Bridge 1: Connects Section 1 to Section 2
+        // NIGHT-ONLY BLOCKS: Complete path from start to finish
+        // These make the level fully playable and completable at night
+        
+        // Night path from start: Continuous ground path - Lowered significantly
         for (int i = 0; i < 5 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((7f + i * subBlockSize) * blockSize, 2.2f, 0f), visibleDuringDay: false);
+            CreateBoxBlock(new Vector3((1f + i * subBlockSize) * blockSize, 1.0f, 0f), visibleDuringDay: false);
         }
         
-        // Night Bridge 2: Connects Section 2 to Section 3
-        for (int i = 0; i < 6 * densityMultiplier; i++)
+        // Night bridge 1: First major bridge - Lowered significantly
+        for (int i = 0; i < 8 * densityMultiplier; i++)
         {
-            float x = 14f + i * subBlockSize;
-            float y = 2.5f + (i * 0.15f); // Gradual incline
+            float x = 6f + i * subBlockSize;
+            float y = 1.0f + (i * 0.05f); // Slight incline (reduced)
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        // Night Staircase 1: Connects Section 3 to Section 4 (vertical climb)
-        for (int i = 0; i < 6 * densityMultiplier; i++)
+        // Night platform 1: Landing area - Lowered significantly
+        for (int i = 0; i < 3 * densityMultiplier; i++)
         {
-            float x = 21f + i * subBlockSize;
-            float y = 3.5f + (i * 0.3f); // Steep climb
+            CreateBoxBlock(new Vector3((14f + i * subBlockSize) * blockSize, 1.4f, 0f), visibleDuringDay: false);
+        }
+        
+        // Night staircase 1: Upward climb - Lowered significantly
+        for (int i = 0; i < 8 * densityMultiplier; i++)
+        {
+            float x = 17f + i * subBlockSize;
+            float y = 1.4f + (i * 0.1f); // Steady climb (reduced)
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        // Night Bridge 3: Connects Section 4 to Section 5
-        for (int i = 0; i < 10 * densityMultiplier; i++)
+        // Night platform 2: High landing - Lowered significantly
+        for (int i = 0; i < 4 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((25f + i * subBlockSize) * blockSize, 2.2f, 0f), visibleDuringDay: false);
+        }
+        
+        // Night bridge 2: Long bridge across gap - Lowered significantly
+        for (int i = 0; i < 12 * densityMultiplier; i++)
         {
             float x = 29f + i * subBlockSize;
-            float y = 5.5f - (i * 0.15f); // Gradual decline
+            float y = 2.2f - (i * 0.025f); // Slight decline (reduced)
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        // Night Bridge 4: Connects Section 5 to Section 6
-        for (int i = 0; i < 18 * densityMultiplier; i++)
+        // Night platform 3: Mid-level landing - Lowered significantly
+        for (int i = 0; i < 3 * densityMultiplier; i++)
         {
-            float x = 41f + i * subBlockSize;
-            float y = 4f - (i * 0.055f); // Gradual decline
+            CreateBoxBlock(new Vector3((41f + i * subBlockSize) * blockSize, 1.9f, 0f), visibleDuringDay: false);
+        }
+        
+        // Night staircase 2: Another climb - Lowered significantly
+        for (int i = 0; i < 6 * densityMultiplier; i++)
+        {
+            float x = 44f + i * subBlockSize;
+            float y = 1.9f + (i * 0.075f); // Moderate climb (reduced)
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        // Night Bridge 5: Final bridge to finish line
-        for (int i = 0; i < 18 * densityMultiplier; i++)
+        // Night platform 4: High point - Lowered significantly
+        for (int i = 0; i < 4 * densityMultiplier; i++)
         {
-            float x = 61f + i * subBlockSize;
-            float y = 3f + (i * 0.05f); // Slight incline
+            CreateBoxBlock(new Vector3((50f + i * subBlockSize) * blockSize, 2.35f, 0f), visibleDuringDay: false);
+        }
+        
+        // Night bridge 3: Long descent bridge - Lowered significantly
+        for (int i = 0; i < 15 * densityMultiplier; i++)
+        {
+            float x = 54f + i * subBlockSize;
+            float y = 2.35f - (i * 0.04f); // Gradual descent (reduced)
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        // Night: Additional platforms for easier navigation
-        // Platform to reach lightning bolts
+        // Night platform 5: Lower landing - Lowered significantly
         for (int i = 0; i < 3 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((15f + i * subBlockSize) * blockSize, 3.5f, 0f), visibleDuringDay: false);
+            CreateBoxBlock(new Vector3((69f + i * subBlockSize) * blockSize, 1.75f, 0f), visibleDuringDay: false);
         }
         
-        for (int i = 0; i < 3 * densityMultiplier; i++)
+        // Night bridge 4: Final bridge to finish - Lowered significantly
+        for (int i = 0; i < 20 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((25f + i * subBlockSize) * blockSize, 4.5f, 0f), visibleDuringDay: false);
+            float x = 72f + i * subBlockSize;
+            float y = 1.75f - (i * 0.015f); // Very gradual descent (reduced)
+            CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        for (int i = 0; i < 3 * densityMultiplier; i++)
+        // Night: Additional support platforms for easier navigation - All lowered significantly
+        // Support platform 1
+        for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((35f + i * subBlockSize) * blockSize, 4f, 0f), visibleDuringDay: false);
+            CreateBoxBlock(new Vector3((10f + i * subBlockSize) * blockSize, 1.25f, 0f), visibleDuringDay: false);
         }
         
-        for (int i = 0; i < 3 * densityMultiplier; i++)
+        // Support platform 2
+        for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((50f + i * subBlockSize) * blockSize, 3.5f, 0f), visibleDuringDay: false);
+            CreateBoxBlock(new Vector3((20f + i * subBlockSize) * blockSize, 1.6f, 0f), visibleDuringDay: false);
+        }
+        
+        // Support platform 3
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((33f + i * subBlockSize) * blockSize, 2.1f, 0f), visibleDuringDay: false);
+        }
+        
+        // Support platform 4
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((47f + i * subBlockSize) * blockSize, 2.25f, 0f), visibleDuringDay: false);
+        }
+        
+        // Support platform 5
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((62f + i * subBlockSize) * blockSize, 1.9f, 0f), visibleDuringDay: false);
+        }
+        
+        // Support platform 6
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((80f + i * subBlockSize) * blockSize, 1.6f, 0f), visibleDuringDay: false);
         }
     }
 
     /// <summary>
     /// Place lightning bolts throughout the level
-    /// All bolts are on night-only platforms - rewards for playing at night
+    /// Lightning bolts must be:
+    /// - Within 2 blocks of at least one night block (reachable)
+    /// - At least 5 blocks away from all day blocks (not reachable during day)
     /// </summary>
     void PlaceLightningBolts()
     {
-        // Bolt 1: On night bridge 1
-        CreateLightningBolt(new Vector3(9f * blockSize, 3.2f, 0f));
-
-        // Bolt 2: On night bridge 2
-        CreateLightningBolt(new Vector3(17f * blockSize, 3.5f, 0f));
-
-        // Bolt 3: On night staircase
-        CreateLightningBolt(new Vector3(24f * blockSize, 5f, 0f));
-
-        // Bolt 4: On night bridge 3
-        CreateLightningBolt(new Vector3(32f * blockSize, 4.5f, 0f));
-
-        // Bolt 5: On night bridge 4
-        CreateLightningBolt(new Vector3(45f * blockSize, 3.2f, 0f));
-
-        // Bolt 6: On night bridge 5 (near finish)
-        CreateLightningBolt(new Vector3(70f * blockSize, 3.8f, 0f));
-
-        // Bolt 7: Final reward near finish line
-        CreateLightningBolt(new Vector3(85f * blockSize, 3.5f, 0f));
+        // First, collect all block positions
+        List<Vector3> nightBlockPositions = new List<Vector3>();
+        List<Vector3> dayBlockPositions = new List<Vector3>();
+        
+        // Find all blocks in the scene
+        BoxBlock[] allBlocks = FindObjectsByType<BoxBlock>(FindObjectsSortMode.None);
+        foreach (BoxBlock block in allBlocks)
+        {
+            Vector3 blockPos = block.transform.position;
+            if (block.visibleDuringDay)
+            {
+                dayBlockPositions.Add(blockPos);
+            }
+            else
+            {
+                nightBlockPositions.Add(blockPos);
+            }
+        }
+        
+        // If no blocks found, use calculated positions based on CreatePlatforms layout
+        if (nightBlockPositions.Count == 0 && dayBlockPositions.Count == 0)
+        {
+            // Fallback: calculate positions from known layout
+            CalculateBlockPositions(out nightBlockPositions, out dayBlockPositions);
+        }
+        
+        // Distance constraints
+        float minDistanceToNightBlock = 0.5f * blockSize; // At least 0.5 blocks from night block
+        float maxDistanceToNightBlock = 2f * blockSize; // At most 2 blocks from night block
+        float minDistanceToDayBlock = 5f * blockSize; // At least 5 blocks from day block
+        
+        // Try to place 12 lightning bolts, spread out evenly
+        int boltsPlaced = 0;
+        List<Vector3> placedBoltPositions = new List<Vector3>(); // Track placed bolts to avoid clustering
+        float minDistanceBetweenBolts = 8f * blockSize; // Minimum distance between bolts to spread them out
+        
+        // Candidate positions near night blocks - prioritize positions above blocks
+        List<Vector3> candidatePositions = new List<Vector3>();
+        
+        // Generate candidate positions above night blocks (not all around, just above)
+        foreach (Vector3 nightBlockPos in nightBlockPositions)
+        {
+            // Try positions above the block at different heights
+            for (float height = 1.0f; height <= 2.5f; height += 0.3f)
+            {
+                Vector3 candidatePos = nightBlockPos + new Vector3(0f, height, 0f);
+                candidatePositions.Add(candidatePos);
+            }
+            
+            // Also try slightly to the left and right
+            for (float offset = -1.5f; offset <= 1.5f; offset += 0.5f)
+            {
+                for (float height = 1.2f; height <= 2.0f; height += 0.3f)
+                {
+                    Vector3 candidatePos = nightBlockPos + new Vector3(offset * blockSize, height, 0f);
+                    candidatePositions.Add(candidatePos);
+                }
+            }
+        }
+        
+        // Shuffle candidates to avoid patterns
+        System.Random rng = new System.Random(42);
+        for (int i = candidatePositions.Count - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            Vector3 temp = candidatePositions[i];
+            candidatePositions[i] = candidatePositions[j];
+            candidatePositions[j] = temp;
+        }
+        
+        // Try each candidate position
+        foreach (Vector3 candidatePos in candidatePositions)
+        {
+            if (boltsPlaced >= 12) break;
+            
+            // Check distance to nearest night block
+            float minDistToNight = float.MaxValue;
+            foreach (Vector3 nightPos in nightBlockPositions)
+            {
+                float dist = Vector3.Distance(candidatePos, nightPos);
+                if (dist < minDistToNight)
+                {
+                    minDistToNight = dist;
+                }
+            }
+            
+            // Check distance to nearest day block
+            float minDistToDay = float.MaxValue;
+            foreach (Vector3 dayPos in dayBlockPositions)
+            {
+                float dist = Vector3.Distance(candidatePos, dayPos);
+                if (dist < minDistToDay)
+                {
+                    minDistToDay = dist;
+                }
+            }
+            
+            // Check distance to other placed bolts (to avoid clustering)
+            bool tooCloseToOtherBolts = false;
+            foreach (Vector3 placedPos in placedBoltPositions)
+            {
+                float dist = Vector3.Distance(candidatePos, placedPos);
+                if (dist < minDistanceBetweenBolts)
+                {
+                    tooCloseToOtherBolts = true;
+                    break;
+                }
+            }
+            
+            // Check if position satisfies all conditions
+            bool withinNightRange = minDistToNight >= minDistanceToNightBlock && minDistToNight <= maxDistanceToNightBlock;
+            bool farFromDayBlocks = minDistToDay >= minDistanceToDayBlock;
+            bool spreadOut = !tooCloseToOtherBolts;
+            
+            if (withinNightRange && farFromDayBlocks && spreadOut)
+            {
+                CreateLightningBolt(candidatePos);
+                placedBoltPositions.Add(candidatePos);
+                boltsPlaced++;
+            }
+        }
+        
+        // If we didn't place enough bolts, use fallback positions
+        if (boltsPlaced < 12)
+        {
+            Debug.LogWarning($"Only placed {boltsPlaced}/12 lightning bolts. Using fallback positions.");
+            PlaceLightningBoltsFallback(nightBlockPositions, dayBlockPositions);
+        }
+    }
+    
+    /// <summary>
+    /// Calculate block positions from known layout (fallback if blocks not found in scene)
+    /// </summary>
+    void CalculateBlockPositions(out List<Vector3> nightBlocks, out List<Vector3> dayBlocks)
+    {
+        nightBlocks = new List<Vector3>();
+        dayBlocks = new List<Vector3>();
+        
+        int densityMultiplier = 10;
+        float subBlockSize = blockSize / densityMultiplier;
+        
+        // Day blocks (updated to match new layout)
+        for (int i = 0; i < 3 * densityMultiplier; i++)
+        {
+            dayBlocks.Add(new Vector3((1f + i * subBlockSize) * blockSize, 1.0f, 0f));
+        }
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            dayBlocks.Add(new Vector3((8f + i * subBlockSize) * blockSize, 1.2f, 0f));
+        }
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            dayBlocks.Add(new Vector3((15f + i * subBlockSize) * blockSize, 1.3f, 0f));
+        }
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            dayBlocks.Add(new Vector3((25f + i * subBlockSize) * blockSize, 1.5f, 0f));
+        }
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            dayBlocks.Add(new Vector3((35f + i * subBlockSize) * blockSize, 1.4f, 0f));
+        }
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            dayBlocks.Add(new Vector3((45f + i * subBlockSize) * blockSize, 1.6f, 0f));
+        }
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            dayBlocks.Add(new Vector3((60f + i * subBlockSize) * blockSize, 1.5f, 0f));
+        }
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            dayBlocks.Add(new Vector3((70f + i * subBlockSize) * blockSize, 1.25f, 0f));
+        }
+        
+        // Night blocks (sample key positions)
+        nightBlocks.Add(new Vector3(2f * blockSize, 1.0f, 0f)); // Night path
+        nightBlocks.Add(new Vector3(8f * blockSize, 1.1f, 0f)); // Night bridge 1
+        nightBlocks.Add(new Vector3(15f * blockSize, 1.4f, 0f)); // Night platform 1
+        nightBlocks.Add(new Vector3(20f * blockSize, 1.6f, 0f)); // Night staircase 1
+        nightBlocks.Add(new Vector3(27f * blockSize, 2.2f, 0f)); // Night platform 2
+        nightBlocks.Add(new Vector3(35f * blockSize, 2.15f, 0f)); // Night bridge 2
+        nightBlocks.Add(new Vector3(42f * blockSize, 1.9f, 0f)); // Night platform 3
+        nightBlocks.Add(new Vector3(47f * blockSize, 2.0f, 0f)); // Night staircase 2
+        nightBlocks.Add(new Vector3(52f * blockSize, 2.35f, 0f)); // Night platform 4
+        nightBlocks.Add(new Vector3(60f * blockSize, 2.1f, 0f)); // Night bridge 3
+        nightBlocks.Add(new Vector3(70f * blockSize, 1.75f, 0f)); // Night platform 5
+        nightBlocks.Add(new Vector3(80f * blockSize, 1.7f, 0f)); // Night bridge 4
+    }
+    
+    /// <summary>
+    /// Fallback method to place lightning bolts if automatic placement fails
+    /// Spreads them out evenly along the night path, far from day blocks
+    /// </summary>
+    void PlaceLightningBoltsFallback(List<Vector3> nightBlocks, List<Vector3> dayBlocks)
+    {
+        int blocksPerOriginal = 10;
+        float subBlockSize = blockSize / blocksPerOriginal;
+        
+        // Place bolts spread out along the night path, ensuring they're:
+        // 1. Near night blocks (within 2 blocks)
+        // 2. Far from day blocks (at least 5 blocks away)
+        // 3. Spread out evenly (not clumped together)
+        
+        // Calculate positions that are spread out along the level
+        float[] boltXPositions = { 2.5f, 7f, 13f, 18f, 23f, 32f, 39f, 45f, 49f, 58f, 65f, 75f };
+        float[] boltYOffsets = { 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f };
+        
+        // Find corresponding night block Y positions
+        for (int i = 0; i < boltXPositions.Length && i < 12; i++)
+        {
+            float boltX = boltXPositions[i] * blockSize;
+            float boltY = 1.0f + boltYOffsets[i]; // Default height
+            
+            // Find nearest night block to get proper Y position
+            float nearestNightY = 1.0f;
+            float minDist = float.MaxValue;
+            foreach (Vector3 nightPos in nightBlocks)
+            {
+                float dist = Mathf.Abs(nightPos.x - boltX);
+                if (dist < minDist && dist < 5f * blockSize)
+                {
+                    minDist = dist;
+                    nearestNightY = nightPos.y;
+                }
+            }
+            
+            // Check if far enough from day blocks
+            bool tooCloseToDay = false;
+            foreach (Vector3 dayPos in dayBlocks)
+            {
+                float dist = Vector3.Distance(new Vector3(boltX, boltY, 0f), dayPos);
+                if (dist < 5f * blockSize)
+                {
+                    tooCloseToDay = true;
+                    break;
+                }
+            }
+            
+            // Only place if far from day blocks
+            if (!tooCloseToDay)
+            {
+                boltY = nearestNightY + 1.5f; // Above the night block
+                CreateLightningBolt(new Vector3(boltX, boltY, 0f));
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Place monsters (death points) on night-only platforms
+    /// These are obstacles the player must avoid (only appear at night)
+    /// </summary>
+    void PlaceMonsters()
+    {
+        // Place monsters in the MIDDLE of night paths where players will definitely encounter them
+        // Position them on top of night blocks, in the center of platforms/bridges
+        
+        // Monster 1: Middle of night bridge 1 (player must cross this)
+        CreateMonster(new Vector3(9f * blockSize, 1.15f, 0f));
+        
+        // Monster 2: Middle of night platform 1 (landing area - player will land here)
+        CreateMonster(new Vector3(15.5f * blockSize, 1.55f, 0f));
+        
+        // Monster 3: Middle of night staircase 1 (player climbing up)
+        CreateMonster(new Vector3(20f * blockSize, 1.7f, 0f));
+        
+        // Monster 4: Middle of night platform 2 (high landing - player must pass)
+        CreateMonster(new Vector3(27f * blockSize, 2.35f, 0f));
+        
+        // Monster 5: Middle of night bridge 2 (long bridge - player must cross)
+        CreateMonster(new Vector3(35f * blockSize, 2.1f, 0f));
+        
+        // Monster 6: Middle of night platform 3 (mid-level landing)
+        CreateMonster(new Vector3(42f * blockSize, 2.05f, 0f));
+        
+        // Monster 7: Middle of night staircase 2 (player climbing)
+        CreateMonster(new Vector3(47f * blockSize, 2.15f, 0f));
+        
+        // Monster 8: Middle of night platform 4 (high point)
+        CreateMonster(new Vector3(52f * blockSize, 2.5f, 0f));
+        
+        // Monster 9: Middle of night bridge 3 (long descent bridge)
+        CreateMonster(new Vector3(60f * blockSize, 2.15f, 0f));
+        
+        // Monster 10: Middle of night platform 5 (lower landing)
+        CreateMonster(new Vector3(70f * blockSize, 1.9f, 0f));
+        
+        // Monster 11: Middle of night bridge 4 (final bridge to finish)
+        CreateMonster(new Vector3(80f * blockSize, 1.7f, 0f));
     }
     
     /// <summary>
@@ -690,9 +1107,11 @@ public class FirstLevelGenerator : MonoBehaviour
 
     void CreateBoxBlock(Vector3 position, bool visibleDuringDay = true)
     {
+        GameObject block;
+        
         if (boxBlockPrefab != null)
         {
-            GameObject block = Instantiate(boxBlockPrefab, position, Quaternion.identity);
+            block = Instantiate(boxBlockPrefab, position, Quaternion.identity);
             block.transform.SetParent(blocksParent);
             
             BoxBlock boxBlock = block.GetComponent<BoxBlock>();
@@ -703,12 +1122,30 @@ public class FirstLevelGenerator : MonoBehaviour
         }
         else
         {
-            GameObject block = new GameObject("BoxBlock");
+            block = new GameObject("BoxBlock");
             block.transform.position = position;
             block.transform.SetParent(blocksParent);
             
             BoxBlock boxBlock = block.AddComponent<BoxBlock>();
             boxBlock.visibleDuringDay = visibleDuringDay;
+        }
+        
+        // Scale block to 50% size
+        block.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
+        
+        // IMPORTANT: Ensure collider is properly configured for collision
+        BoxCollider2D blockCollider = block.GetComponent<BoxCollider2D>();
+        if (blockCollider != null)
+        {
+            blockCollider.isTrigger = false; // Must be solid for collision
+            blockCollider.enabled = true;
+            // Collider size will be auto-adjusted by BoxBlock.SetupBox() based on sprite
+            // But we need to ensure it accounts for the scale
+            if (blockCollider.size.x > 0 && blockCollider.size.y > 0)
+            {
+                // Collider size is already set by BoxBlock, but scale affects it
+                // The collider will automatically scale with the transform
+            }
         }
     }
 
@@ -729,6 +1166,18 @@ public class FirstLevelGenerator : MonoBehaviour
         }
     }
     
+    void CreateMonster(Vector3 position)
+    {
+        GameObject monster = new GameObject("Monster");
+        monster.transform.position = position;
+        monster.transform.SetParent(itemsParent);
+        
+        Monster monsterComponent = monster.AddComponent<Monster>();
+        monsterComponent.monsterColor = new Color(0.8f, 0.2f, 0.2f); // Red
+        monsterComponent.size = 0.8f; // Slightly smaller than a block
+        // Note: Monster handles death through GameManager, no need for restartLevelOnDeath or levelSceneName
+    }
+    
     void CreateFinishLine(Vector3 position)
     {
         GameObject finishLine = new GameObject("FinishLine");
@@ -736,26 +1185,270 @@ public class FirstLevelGenerator : MonoBehaviour
         finishLine.transform.SetParent(itemsParent);
         
         FinishLine finish = finishLine.AddComponent<FinishLine>();
-        finish.requireAllBolts = false; // Set to true if you want to require all bolts
+        finish.requireAllBolts = true; // Player must collect all bolts to win
         finish.nextLevelSceneName = ""; // Leave empty to return to menu, or set to next level scene name
     }
 
     void CreatePlayer(Vector3 position)
     {
-        GameObject existingPlayer = GameObject.FindGameObjectWithTag("Player");
-        if (existingPlayer != null)
+        // First, check if player prefab is assigned - use it if available
+        if (playerPrefab != null)
         {
-            playerInstance = existingPlayer;
+            // Destroy any existing player first
+            GameObject existingPlayer = GameObject.FindGameObjectWithTag("Player");
+            if (existingPlayer != null)
+            {
+                DestroyImmediate(existingPlayer);
+            }
+            
+            // Instantiate player from prefab
+            playerInstance = Instantiate(playerPrefab, position, Quaternion.identity);
+            playerInstance.tag = "Player";
+            return;
+        }
+        
+        // Fallback: Find existing player or create new one
+        GameObject existingPlayerObj = GameObject.FindGameObjectWithTag("Player");
+        if (existingPlayerObj != null)
+        {
+            playerInstance = existingPlayerObj;
             playerInstance.transform.position = position;
+            
+            // Ensure existing player has the correct sprite
+            SpriteRenderer existingSr = playerInstance.GetComponent<SpriteRenderer>();
+            if (existingSr != null)
+            {
+                // If sprite is not set or is the default, try to set the Jump sprite
+                if (existingSr.sprite == null || existingSr.sprite.name.Contains("Default") || existingSr.sprite.name == "New Sprite")
+                {
+                    Sprite correctSprite = GetPlayerSprite();
+                    if (correctSprite != null)
+                    {
+                        existingSr.sprite = correctSprite;
+                        Debug.Log($"Updated existing player sprite to: {correctSprite.name}");
+                    }
+                }
+            }
         }
         else
         {
-            playerInstance = new GameObject("Player");
-            playerInstance.tag = "Player";
-            playerInstance.transform.position = position;
+            // Create player GameObject from scratch with all components
+            playerInstance = CreatePlayerFromScratch(position);
+        }
+    }
+
+    /// <summary>
+    /// Get the player sprite (Jump sprite from Virtual Guy)
+    /// </summary>
+    Sprite GetPlayerSprite()
+    {
+        // First, check if sprite is assigned in Inspector
+        if (playerSprite != null)
+        {
+            return playerSprite;
+        }
+        
+        // Try to load "Jump" sprite from PixelAdventure folder
+        // Method 1: Try Resources.Load with multiple paths
+        string[] possiblePaths = {
+            "PixelAdventure/Main Characters/Virtual Guy/Jump",
+            "Virtual Guy/Jump",
+            "Jump"
+        };
+        
+        foreach (string path in possiblePaths)
+        {
+            Sprite sprite = Resources.Load<Sprite>(path);
+            if (sprite != null)
+            {
+                return sprite;
+            }
+        }
+        
+        // Method 2: Find by name from all loaded sprites
+        Sprite[] allSprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        Sprite bestMatch = null;
+        
+        foreach (Sprite s in allSprites)
+        {
+            if (s.name.Contains("Jump"))
+            {
+                if (s.name.Contains("32x32"))
+                {
+                    return s; // Preferred format
+                }
+                if (bestMatch == null)
+                {
+                    bestMatch = s;
+                }
+            }
+        }
+        
+        // Method 3: Try using AssetDatabase in editor with exact path
+        #if UNITY_EDITOR
+        // Try multiple path variations
+        string[] pathVariations = {
+            "Assets/PixelAdventure/Main Characters/Virtual Guy/Jump.asset",
+            "Assets/PixelAdventure/Main Characters/Virtual Guy/Jump",
+            "Assets/PixelAdventure/Main Characters/Virtual Guy/Jump (32x32).asset",
+            "Assets/PixelAdventure/Main Characters/Virtual Guy/Jump (32x32)"
+        };
+        
+        foreach (string path in pathVariations)
+        {
+            Sprite sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sprite != null)
+            {
+                Debug.Log($"✓ Found sprite at path: {path}");
+                return sprite;
+            }
+        }
+        
+        // Search in Virtual Guy folder - find all sprites with "Jump" in name
+        string[] guids = UnityEditor.AssetDatabase.FindAssets("Jump", new[] { "Assets/PixelAdventure/Main Characters/Virtual Guy" });
+        Debug.Log($"Searching for Jump sprite in Virtual Guy folder, found {guids.Length} assets");
+        
+        foreach (string guid in guids)
+        {
+            string assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+            Debug.Log($"Checking asset: {assetPath}");
             
-            // PlayerController will add its own components in Awake()
-            PlayerController controller = playerInstance.AddComponent<PlayerController>();
+            // Try loading as Sprite
+            Sprite sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+            if (sprite != null)
+            {
+                Debug.Log($"✓ Found sprite: {assetPath} (name: {sprite.name})");
+                return sprite;
+            }
+            
+            // If it's a texture, try loading it
+            Texture2D texture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+            if (texture != null && assetPath.Contains("Jump"))
+            {
+                Debug.Log($"Found texture (not sprite): {assetPath}");
+            }
+        }
+        
+        // Broader search in PixelAdventure - find all Jump sprites
+        guids = UnityEditor.AssetDatabase.FindAssets("Jump t:Sprite", new[] { "Assets/PixelAdventure" });
+        Debug.Log($"Broad search found {guids.Length} Jump sprites in PixelAdventure");
+        
+        foreach (string guid in guids)
+        {
+            string assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+            if (assetPath.Contains("Virtual Guy"))
+            {
+                Sprite sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+                if (sprite != null)
+                {
+                    Debug.Log($"✓ Found sprite via broad search: {assetPath}");
+                    return sprite;
+                }
+            }
+        }
+        
+        Debug.LogWarning("Could not find Jump sprite using AssetDatabase. Please assign it manually in Inspector.");
+        #endif
+        
+        return bestMatch;
+    }
+    
+    /// <summary>
+    /// Create player GameObject from scratch with all necessary components
+    /// Automatically loads the "Jump" sprite from PixelAdventure if available
+    /// </summary>
+    GameObject CreatePlayerFromScratch(Vector3 position)
+    {
+        GameObject player = new GameObject("Player");
+        player.tag = "Player";
+        player.transform.position = position;
+        
+        // Add SpriteRenderer
+        SpriteRenderer sr = player.AddComponent<SpriteRenderer>();
+        
+        // Try to load the sprite
+        Sprite spriteToUse = GetPlayerSprite();
+        
+        // Log sprite finding result
+        if (spriteToUse != null)
+        {
+            Debug.Log($"Using player sprite: {spriteToUse.name}");
+        }
+        else
+        {
+            Debug.LogWarning("Player sprite not found! Will use default sprite from PlayerController. " +
+                "Please assign the 'Jump' sprite to the 'Player Sprite' field in FirstLevelGenerator Inspector.");
+        }
+        
+        // Set sprite BEFORE adding PlayerController to ensure it's preserved
+        if (spriteToUse != null)
+        {
+            sr.sprite = spriteToUse;
+            Debug.Log($"Sprite assigned to player: {spriteToUse.name}");
+        }
+        // If no sprite found, PlayerController will create a default one
+        
+        sr.color = Color.white;
+        sr.sortingOrder = 1;
+        sr.drawMode = SpriteDrawMode.Simple;
+        
+        // Add Rigidbody2D
+        Rigidbody2D rb = player.AddComponent<Rigidbody2D>();
+        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.freezeRotation = true;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.gravityScale = 3f;
+        
+        // Add Collider2D (CapsuleCollider2D for better character physics)
+        CapsuleCollider2D col = player.AddComponent<CapsuleCollider2D>();
+        col.direction = CapsuleDirection2D.Vertical;
+        
+        // Auto-size collider based on sprite
+        if (spriteToUse != null)
+        {
+            Vector2 spriteSize = spriteToUse.bounds.size;
+            col.size = spriteSize;
+        }
+        else
+        {
+            // Default size if no sprite
+            col.size = new Vector2(0.875f, 0.5625f);
+        }
+        
+        col.isTrigger = false;
+        
+        // Ensure rotation is correct (facing right, not sideways)
+        player.transform.rotation = Quaternion.identity; // No rotation
+        
+        // Add PlayerController (this will set up additional things in Awake)
+        PlayerController controller = player.AddComponent<PlayerController>();
+        
+        // IMPORTANT: Ensure sprite is set AFTER PlayerController is added
+        // Use a coroutine to set sprite after all Awake() methods complete
+        if (spriteToUse != null)
+        {
+            StartCoroutine(SetSpriteAfterInitialization(player, spriteToUse));
+        }
+        
+        return player;
+    }
+    
+    /// <summary>
+    /// Coroutine to set sprite after all components are initialized
+    /// </summary>
+    IEnumerator SetSpriteAfterInitialization(GameObject playerObj, Sprite sprite)
+    {
+        // Wait for end of frame to ensure all Awake() methods have completed
+        yield return new WaitForEndOfFrame();
+        
+        if (playerObj != null)
+        {
+            SpriteRenderer finalSr = playerObj.GetComponent<SpriteRenderer>();
+            if (finalSr != null)
+            {
+                finalSr.sprite = sprite;
+                Debug.Log($"Sprite set after initialization: {sprite.name}");
+            }
         }
     }
 

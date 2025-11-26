@@ -23,7 +23,7 @@ public class CloudController : MonoBehaviour
     
     void Start()
     {
-        gameManager = FindObjectOfType<GameManager>();
+        gameManager = FindFirstObjectByType<GameManager>();
         
         // Subscribe to day/night changes
         if (gameManager != null)
