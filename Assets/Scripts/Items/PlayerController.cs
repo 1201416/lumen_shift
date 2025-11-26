@@ -65,36 +65,62 @@ public class PlayerController : MonoBehaviour
         {
             // No collider exists, add BoxCollider2D
             BoxCollider2D col = gameObject.AddComponent<BoxCollider2D>();
-            // Size based on sprite: 28/32 = 0.875, 18/32 = 0.5625
-            col.size = new Vector2(0.875f, 0.5625f); // Proportional to sprite size
             col.isTrigger = false; // Must be solid for physics
             col.usedByEffector = false; // Don't use physics materials that might affect collision
+            
+            // CRITICAL: Size collider to match sprite EXACTLY
+            if (sr.sprite != null)
+            {
+                Vector2 spriteSize = sr.sprite.bounds.size;
+                col.size = spriteSize; // Exact match to sprite size
+            }
+            else
+            {
+                // Fallback size if no sprite yet
+                col.size = new Vector2(0.875f, 0.5625f);
+            }
         }
         else
         {
-            // Collider exists (like CapsuleCollider2D), ensure it's configured correctly
+            // Collider exists, ensure it's configured correctly
             existingCollider.isTrigger = false; // Must be solid for physics
             
-            // Auto-size collider to match sprite EXACTLY if sprite exists
+            // CRITICAL: Auto-size collider to match sprite EXACTLY if sprite exists
             if (sr.sprite != null)
             {
                 Vector2 spriteSize = sr.sprite.bounds.size;
                 if (existingCollider is BoxCollider2D boxCol)
                 {
+                    Vector2 oldSize = boxCol.size;
                     boxCol.size = spriteSize; // Exact match to sprite size
                     boxCol.usedByEffector = false;
+                    Debug.Log($"[PlayerController] Collider size set to match sprite: {boxCol.size} (sprite bounds: {spriteSize}, transform scale: {transform.localScale}, old size: {oldSize})");
                 }
                 else if (existingCollider is CapsuleCollider2D capsuleCol)
                 {
+                    Vector2 oldSize = capsuleCol.size;
                     // For capsule, match sprite dimensions exactly
                     capsuleCol.size = spriteSize; // Exact match
                     capsuleCol.usedByEffector = false;
+                    Debug.Log($"[PlayerController] Capsule collider size set to match sprite: {capsuleCol.size} (sprite bounds: {spriteSize}, transform scale: {transform.localScale}, old size: {oldSize})");
                 }
             }
         }
         
         // Ensure transform rotation is correct (facing right, not sideways)
         transform.rotation = Quaternion.identity;
+        
+        // Add collider visualizer for debugging (only in editor)
+        #if UNITY_EDITOR
+        if (GetComponent<ColliderVisualizer>() == null)
+        {
+            ColliderVisualizer visualizer = gameObject.AddComponent<ColliderVisualizer>();
+            visualizer.colliderColor = new Color(1f, 0f, 0f, 0.8f); // Red for collider
+            visualizer.spriteBoundsColor = new Color(0f, 1f, 0f, 0.8f); // Green for sprite
+            visualizer.showInGameView = false; // Only show in Scene view
+            visualizer.showInSceneView = true;
+        }
+        #endif
     }
     
     /// <summary>
@@ -306,7 +332,8 @@ public class PlayerController : MonoBehaviour
                 else
                 {
                     // Normal movement - try to step up if grounded
-                    if (horizontal != 0 && isGrounded)
+                    // BUT: Don't step up if we're underneath a block (check first)
+                    if (horizontal != 0 && isGrounded && !IsUnderneathBlock())
                     {
                         TryStepUp(horizontal, currentMoveSpeed);
                     }
@@ -447,6 +474,54 @@ public class PlayerController : MonoBehaviour
     }
     
     /// <summary>
+    /// Check if player is currently underneath any block (using physics overlap)
+    /// More aggressive detection to prevent teleportation
+    /// </summary>
+    bool IsUnderneathBlock()
+    {
+        Collider2D playerCollider = GetComponent<Collider2D>();
+        if (playerCollider == null) return false;
+        
+        // Check if there's a block above the player using multiple methods
+        Vector2 playerTop = new Vector2(transform.position.x, playerCollider.bounds.max.y);
+        float checkDistance = 1f; // Check up to 1 unit above player (more aggressive)
+        
+        // Method 1: Raycast upward
+        RaycastHit2D hit = Physics2D.Raycast(playerTop, Vector2.up, checkDistance);
+        if (hit.collider != null)
+        {
+            // Check if it's a block
+            if (hit.collider.GetComponent<BoxBlock>() != null)
+            {
+                return true; // There's a block above
+            }
+        }
+        
+        // Method 2: Overlap check at player's top
+        Collider2D[] overlaps = Physics2D.OverlapPointAll(playerTop);
+        foreach (Collider2D col in overlaps)
+        {
+            if (col != null && col.GetComponent<BoxBlock>() != null && col != playerCollider)
+            {
+                return true; // There's a block at player's top
+            }
+        }
+        
+        // Method 3: Check slightly above player's top
+        Vector2 checkAbove = playerTop + Vector2.up * 0.1f;
+        overlaps = Physics2D.OverlapPointAll(checkAbove);
+        foreach (Collider2D col in overlaps)
+        {
+            if (col != null && col.GetComponent<BoxBlock>() != null && col != playerCollider)
+            {
+                return true; // There's a block above player
+            }
+        }
+        
+        return false;
+    }
+    
+    /// <summary>
     /// Check if player is hitting a block from below (head hitting bottom of block)
     /// </summary>
     bool IsHittingBlockFromBelow(Collision2D collision)
@@ -474,28 +549,28 @@ public class PlayerController : MonoBehaviour
         // Player is hitting from below if:
         // 1. Player's center is clearly below the block's center
         // 2. Player's top is touching or very close to the block's bottom
-        // 3. Player is not jumping (vertical velocity is not strongly upward)
         
         bool playerIsBelowBlock = playerCenterY < blockCenterY;
-        bool playerTopTouchingBlockBottom = playerTop >= blockBottom - 0.15f && playerTop <= blockBottom + 0.15f;
-        bool notJumpingUp = rb.linearVelocity.y <= 1f; // Allow small upward velocity for smooth movement
+        bool playerTopTouchingBlockBottom = playerTop >= blockBottom - 0.2f && playerTop <= blockBottom + 0.2f;
         
         if (!playerIsBelowBlock || !playerTopTouchingBlockBottom) return false;
         
         // Check contact normals - if they point down (negative Y), we're hitting from below
+        bool hasDownwardNormal = false;
         foreach (ContactPoint2D contact in collision.contacts)
         {
             // Normal pointing down (negative Y) means we hit the bottom of the block
-            if (contact.normal.y < -0.5f)
+            if (contact.normal.y < -0.3f)
             {
-                return true; // Definitely hitting block from below
+                hasDownwardNormal = true;
+                break;
             }
         }
         
-        // Also check if player's top is clearly below block's bottom but touching
-        if (playerTopTouchingBlockBottom && playerIsBelowBlock && notJumpingUp)
+        // If we have a downward normal OR player is clearly underneath, it's a head collision
+        if (hasDownwardNormal || (playerTopTouchingBlockBottom && playerIsBelowBlock))
         {
-            return true; // Player is underneath and touching
+            return true; // Player is hitting block from below
         }
         
         return false;
@@ -514,6 +589,7 @@ public class PlayerController : MonoBehaviour
         float blockBottom = blockCollider.bounds.min.y;
         float playerTop = playerCollider.bounds.max.y;
         float playerHeight = playerCollider.bounds.size.y;
+        float playerCenterY = transform.position.y;
         
         // Get current velocity
         Vector2 velocity = rb.linearVelocity;
@@ -521,34 +597,35 @@ public class PlayerController : MonoBehaviour
         // CRITICAL: Cancel ALL upward velocity immediately - prevent any jumping up
         if (velocity.y > 0f)
         {
-            velocity.y = -0.1f; // Force small downward velocity to prevent sticking
+            velocity.y = -0.2f; // Force downward velocity to prevent sticking and teleportation
         }
         
-        // Calculate desired Y position: block bottom minus half player height minus small gap
-        float desiredY = blockBottom - (playerHeight * 0.5f) - 0.05f; // Gap to prevent sticking
+        // Calculate desired Y position: block bottom minus half player height minus gap
+        float desiredY = blockBottom - (playerHeight * 0.5f) - 0.08f; // Larger gap to prevent sticking
         
-        // If player's top is at or above block's bottom, immediately reposition
-        if (playerTop >= blockBottom - 0.02f)
+        // CRITICAL: If player's top is at or above block's bottom, IMMEDIATELY reposition
+        // This prevents Unity's physics from pushing the player up
+        if (playerTop >= blockBottom - 0.05f)
         {
             // Immediately set position (no lerping) to prevent teleportation
             transform.position = new Vector3(transform.position.x, desiredY, transform.position.z);
             
-            // Force downward velocity to prevent any upward movement
-            velocity.y = -0.2f; // Small downward velocity
+            // Force strong downward velocity to prevent any upward movement
+            velocity.y = -0.3f; // Stronger downward velocity
         }
-        // If player is close but not penetrating, adjust
-        else if (playerTop > blockBottom - 0.15f)
+        // If player is close but not penetrating, adjust quickly
+        else if (playerTop > blockBottom - 0.2f)
         {
             // Only adjust if significantly above desired position
-            if (transform.position.y > desiredY + 0.03f)
+            if (transform.position.y > desiredY + 0.05f)
             {
-                // Fast correction but preserve horizontal position
-                float newY = Mathf.Lerp(transform.position.y, desiredY, Time.fixedDeltaTime * 40f);
+                // Very fast correction but preserve horizontal position
+                float newY = Mathf.Lerp(transform.position.y, desiredY, Time.fixedDeltaTime * 60f);
                 transform.position = new Vector3(transform.position.x, newY, transform.position.z);
             }
             
-            // Ensure downward or zero velocity (never upward)
-            velocity.y = Mathf.Min(velocity.y, -0.05f); // Always slightly downward
+            // Ensure downward velocity (never upward)
+            velocity.y = Mathf.Min(velocity.y, -0.1f); // Always downward
         }
         
         // Preserve horizontal velocity so player can continue moving underneath
@@ -624,7 +701,7 @@ public class PlayerController : MonoBehaviour
     void OnCollisionStay2D(Collision2D collision)
     {
         // CRITICAL: Check if player is hitting the bottom of a block (head collision)
-        // If so, prevent upward movement/teleportation
+        // If so, prevent upward movement/teleportation - check this FIRST
         if (IsHittingBlockFromBelow(collision))
         {
             // Player is underneath a block - prevent being pushed up
@@ -635,18 +712,21 @@ public class PlayerController : MonoBehaviour
         // Handle sliding continuously to prevent getting stuck
         HandleCollisionSliding(collision);
         
-        // Keep checking if grounded while colliding
-        foreach (ContactPoint2D contact in collision.contacts)
+        // Keep checking if grounded while colliding (but only if not underneath a block)
+        if (!IsUnderneathBlock())
         {
-            if (contact.normal.y > 0.5f)
+            foreach (ContactPoint2D contact in collision.contacts)
             {
-                if ( 
-                    collision.gameObject.GetComponent<FloorBlock>() != null ||
-                    collision.gameObject.GetComponent<BoxBlock>() != null ||
-                    collision.gameObject.name.Contains("Boundary"))
+                if (contact.normal.y > 0.5f)
                 {
-                    isGrounded = true;
-                    break;
+                    if ( 
+                        collision.gameObject.GetComponent<FloorBlock>() != null ||
+                        collision.gameObject.GetComponent<BoxBlock>() != null ||
+                        collision.gameObject.name.Contains("Boundary"))
+                    {
+                        isGrounded = true;
+                        break;
+                    }
                 }
             }
         }
@@ -675,6 +755,46 @@ public class PlayerController : MonoBehaviour
         if (rb.linearVelocity.y < -0.1f && !isGrounded)
         {
             // Already not grounded, this is fine
+        }
+        
+        // CRITICAL: Continuously check if we're underneath a block and prevent upward movement
+        // This prevents Unity's physics from pushing us up
+        if (IsUnderneathBlock())
+        {
+            // Force downward velocity to prevent any upward movement
+            if (rb.linearVelocity.y > 0f)
+            {
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, -0.2f);
+            }
+        }
+    }
+    
+    void LateUpdate()
+    {
+        // CRITICAL: Ensure collider matches sprite size exactly after sprite is loaded
+        // This runs after all updates to ensure sprite is set
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        Collider2D col = GetComponent<Collider2D>();
+        
+        if (sr != null && sr.sprite != null && col != null)
+        {
+            Vector2 spriteSize = sr.sprite.bounds.size;
+            
+            if (col is BoxCollider2D boxCol)
+            {
+                // Only update if sizes don't match (avoid constant updates)
+                if (Vector2.Distance(boxCol.size, spriteSize) > 0.001f)
+                {
+                    boxCol.size = spriteSize; // Exact match to sprite size
+                }
+            }
+            else if (col is CapsuleCollider2D capsuleCol)
+            {
+                if (Vector2.Distance(capsuleCol.size, spriteSize) > 0.001f)
+                {
+                    capsuleCol.size = spriteSize; // Exact match to sprite size
+                }
+            }
         }
     }
 }

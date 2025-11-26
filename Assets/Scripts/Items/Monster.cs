@@ -1,16 +1,26 @@
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// Monster - simple death point that shows death screen when player touches it
 /// Appears only at night
-/// Designed to be extended with movement in the future
+/// Supports Flying Eye and Mushroom sprites from Monsters Creatures Fantasy asset pack
 /// </summary>
 [RequireComponent(typeof(BoxCollider2D))]
 [RequireComponent(typeof(SpriteRenderer))]
 public class Monster : MonoBehaviour
 {
+    public enum MonsterType
+    {
+        FlyingEye,
+        Mushroom
+    }
+    
     [Header("Monster Settings")]
-    public Color monsterColor = new Color(0.8f, 0.2f, 0.2f); // Red color
+    public MonsterType monsterType = MonsterType.FlyingEye;
+    public Color monsterColor = Color.white; // Default white (sprites have their own colors)
     public float size = 1f; // Size of the monster
     
     [Header("Day/Night Behavior")]
@@ -34,22 +44,176 @@ public class Monster : MonoBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
         
         SetupMonster();
+        
+        // Add collider visualizer for debugging (only in editor)
+        #if UNITY_EDITOR
+        if (GetComponent<ColliderVisualizer>() == null)
+        {
+            ColliderVisualizer visualizer = gameObject.AddComponent<ColliderVisualizer>();
+            visualizer.colliderColor = new Color(1f, 0.5f, 0f, 0.8f); // Orange for monster collider
+            visualizer.spriteBoundsColor = new Color(0f, 1f, 0f, 0.8f); // Green for sprite
+            visualizer.showInGameView = false; // Only show in Scene view
+            visualizer.showInSceneView = true;
+        }
+        #endif
     }
     
     void SetupMonster()
     {
-        // Setup collider as trigger
-        monsterCollider.isTrigger = true;
-        monsterCollider.size = new Vector2(size, size);
-        
-        // Create default sprite if none exists
+        // Load sprite based on monster type FIRST
         if (spriteRenderer.sprite == null)
         {
-            spriteRenderer.sprite = CreateDefaultMonsterSprite();
+            Sprite loadedSprite = LoadMonsterSprite(monsterType);
+            if (loadedSprite != null)
+            {
+                spriteRenderer.sprite = loadedSprite;
+            }
+            else
+            {
+                // Fallback to default sprite if loading fails
+                spriteRenderer.sprite = CreateDefaultMonsterSprite();
+            }
+        }
+        
+        // Setup collider as trigger
+        monsterCollider.isTrigger = true;
+        
+        // CRITICAL: Size collider to match sprite bounds EXACTLY (not static size)
+        // This ensures the collider matches the actual sprite dimensions
+        if (spriteRenderer.sprite != null)
+        {
+            Vector2 spriteSize = spriteRenderer.sprite.bounds.size;
+            monsterCollider.size = spriteSize; // Exact match to sprite size - no static values
+        }
+        else
+        {
+            // Only use size parameter as temporary fallback if no sprite loaded yet
+            monsterCollider.size = new Vector2(size, size);
         }
         
         spriteRenderer.color = monsterColor;
         spriteRenderer.sortingOrder = 2; // Above ground and player
+    }
+    
+    /// <summary>
+    /// Load monster sprite from assets based on monster type
+    /// Follows Unity best practices for asset loading
+    /// Uses AssetDatabase in editor, Resources at runtime
+    /// </summary>
+    Sprite LoadMonsterSprite(MonsterType type)
+    {
+        string spriteName = "";
+        string folderName = "";
+        
+        switch (type)
+        {
+            case MonsterType.FlyingEye:
+                spriteName = "Flight";
+                folderName = "Flying eye";
+                break;
+            case MonsterType.Mushroom:
+                spriteName = "Idle";
+                folderName = "Mushroom";
+                break;
+        }
+        
+        if (string.IsNullOrEmpty(spriteName)) return null;
+        
+        Sprite sprite = null;
+        
+#if UNITY_EDITOR
+        // In editor, use AssetDatabase to find and load the sprite
+        // This is the recommended Unity approach for editor-time asset loading
+        string searchFolder = $"Assets/Monsters Creatures Fantasy/Sprites/{folderName}";
+        
+        // First, try to find the specific sprite by name (case-insensitive search)
+        string[] guids = AssetDatabase.FindAssets($"{spriteName} t:Sprite", new[] { searchFolder });
+        
+        // Also try searching in the parent folder if direct search fails
+        if (guids.Length == 0)
+        {
+            guids = AssetDatabase.FindAssets($"{spriteName} t:Sprite", new[] { "Assets/Monsters Creatures Fantasy" });
+        }
+        
+        foreach (string guid in guids)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            // Verify it's the correct sprite (contains folder name and sprite name, case-insensitive)
+            string lowerPath = assetPath.ToLower();
+            string lowerFolder = folderName.ToLower();
+            string lowerSprite = spriteName.ToLower();
+            
+            if (lowerPath.Contains(lowerFolder) && lowerPath.Contains(lowerSprite))
+            {
+                sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+                if (sprite != null)
+                {
+                    Debug.Log($"Loaded {type} sprite from: {assetPath}");
+                    return sprite;
+                }
+            }
+        }
+        
+        // Fallback: find any sprite in the monster's folder (prefer Idle/Flight)
+        guids = AssetDatabase.FindAssets("t:Sprite", new[] { searchFolder });
+        if (guids.Length == 0)
+        {
+            // Try parent folder
+            guids = AssetDatabase.FindAssets("t:Sprite", new[] { "Assets/Monsters Creatures Fantasy/Sprites" });
+        }
+        
+        if (guids.Length > 0)
+        {
+            // Prefer Idle or Flight sprites
+            foreach (string guid in guids)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                string lowerPath = assetPath.ToLower();
+                // Check if it's in the correct folder
+                if (lowerPath.Contains(folderName.ToLower()))
+                {
+                    if (lowerPath.Contains("idle") || lowerPath.Contains("flight"))
+                    {
+                        sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+                        if (sprite != null)
+                        {
+                            Debug.Log($"Loaded {type} sprite (fallback) from: {assetPath}");
+                            return sprite;
+                        }
+                    }
+                }
+            }
+            // If no Idle/Flight found, use first sprite from correct folder
+            foreach (string guid in guids)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                if (assetPath.ToLower().Contains(folderName.ToLower()))
+                {
+                    sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+                    if (sprite != null)
+                    {
+                        Debug.Log($"Loaded {type} sprite (first available) from: {assetPath}");
+                        return sprite;
+                    }
+                }
+            }
+        }
+        
+        Debug.LogWarning($"Could not find sprite for {type} in {searchFolder}. Using default sprite.");
+#else
+        // At runtime, try Resources.Load (requires sprites to be in Resources folder)
+        // Note: For runtime, sprites should be moved to Resources folder or referenced directly
+        string resourcesPath = $"Monsters Creatures Fantasy/Sprites/{folderName}/{spriteName}";
+        sprite = Resources.Load<Sprite>(resourcesPath);
+        if (sprite == null)
+        {
+            // Try without spaces
+            resourcesPath = resourcesPath.Replace(" ", "_");
+            sprite = Resources.Load<Sprite>(resourcesPath);
+        }
+#endif
+        
+        return sprite;
     }
     
     void Start()
@@ -72,6 +236,28 @@ public class Monster : MonoBehaviour
             
             // Subscribe to day/night changes
             gameManager.OnTimeOfDayChanged += SetTimeOfDay;
+        }
+        
+        // CRITICAL: Ensure collider size matches sprite EXACTLY after sprite is definitely loaded
+        // This is called in Start() to ensure sprite is loaded and collider matches it perfectly
+        if (spriteRenderer.sprite != null && monsterCollider != null)
+        {
+            Vector2 spriteSize = spriteRenderer.sprite.bounds.size;
+            monsterCollider.size = spriteSize; // Exact match to sprite size - no static values
+            
+            Debug.Log($"[Monster] {monsterType} - Collider size set to match sprite: {monsterCollider.size} (sprite bounds: {spriteSize}, transform scale: {transform.localScale})");
+            
+            // Verify they match
+            float diffX = Mathf.Abs(monsterCollider.bounds.size.x - spriteRenderer.bounds.size.x);
+            float diffY = Mathf.Abs(monsterCollider.bounds.size.y - spriteRenderer.bounds.size.y);
+            if (diffX > 0.01f || diffY > 0.01f)
+            {
+                Debug.LogWarning($"[Monster] {monsterType} - SIZE MISMATCH! Collider bounds: {monsterCollider.bounds.size} vs Sprite bounds: {spriteRenderer.bounds.size} (diff: {diffX:F4}, {diffY:F4})");
+            }
+            else
+            {
+                Debug.Log($"[Monster] {monsterType} - Collider matches sprite bounds ✓");
+            }
         }
         
         // Future: Initialize movement if canMove is enabled
@@ -126,6 +312,23 @@ public class Monster : MonoBehaviour
         {
             // Movement logic will be added here
             // Example: transform.position += (Vector3)(moveDirection * moveSpeed * Time.deltaTime);
+        }
+    }
+    
+    void LateUpdate()
+    {
+        // CRITICAL: Ensure collider matches sprite size exactly after sprite is loaded
+        // This runs after all updates to ensure sprite is set and collider matches it
+        // No static size values - always match the actual sprite
+        if (spriteRenderer != null && spriteRenderer.sprite != null && monsterCollider != null)
+        {
+            Vector2 spriteSize = spriteRenderer.sprite.bounds.size;
+            
+            // Only update if sizes don't match (avoid constant updates)
+            if (Vector2.Distance(monsterCollider.size, spriteSize) > 0.001f)
+            {
+                monsterCollider.size = spriteSize; // Exact match to sprite size - no static values
+            }
         }
     }
     

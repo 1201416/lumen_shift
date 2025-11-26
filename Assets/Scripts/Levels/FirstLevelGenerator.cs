@@ -271,20 +271,15 @@ public class FirstLevelGenerator : MonoBehaviour
                 cameraFollow.target = playerInstance.transform;
             }
             
-            // Set camera size to show only visibleBlocks (16 blocks = 1/10 of 160)
-            // Zoom in 2x by reducing camera size to half (makes player appear 2x bigger)
+            // Set camera size to show visibleBlocks
+            // Zoom in 3x total (2x * 1.5x = 3x) - make everything appear 3x bigger
             float aspectRatio = mainCamera.aspect;
             float desiredHalfWidth = visibleBlocks * 0.5f; // Half of visible blocks
             float calculatedSize = desiredHalfWidth / aspectRatio;
             
-            // Make camera 2x closer (37.5% of calculated size = 2x zoom)
-            // Original was 75%, now 37.5% = 2x zoom
-            float zoomedInSize = calculatedSize * 0.375f;
-            
-            // Reduce ground visibility - show only 1/4 of current screen (1/2 of current ground view)
-            // Adjust camera to show less ground by reducing vertical view
-            float groundReduction = 0.5f; // Show half the ground (which is 1/4 of screen)
-            zoomedInSize = zoomedInSize * groundReduction;
+            // Zoom in 3x total - use 1/3 the size (makes everything appear 3x bigger)
+            // 0.5f (2x) * (1/1.5) = 0.333f (3x zoom)
+            float zoomedInSize = calculatedSize * 0.333f;
             
             cameraFollow.cameraSize = zoomedInSize;
             mainCamera.orthographicSize = zoomedInSize;
@@ -1038,44 +1033,127 @@ public class FirstLevelGenerator : MonoBehaviour
     /// <summary>
     /// Place monsters (death points) on night-only platforms
     /// These are obstacles the player must avoid (only appear at night)
+    /// Flying Eye monsters go on night blocks/platforms
+    /// Mushroom monsters ALWAYS go on top of grass blocks
     /// </summary>
     void PlaceMonsters()
     {
-        // Place monsters in the MIDDLE of night paths where players will definitely encounter them
+        // First, place Flying Eye monsters on night platforms/bridges
+        PlaceFlyingEyeMonsters();
+        
+        // Then, place Mushroom monsters on top of grass blocks
+        PlaceMushroomMonstersOnGrass();
+    }
+    
+    /// <summary>
+    /// Place Flying Eye monsters on night platforms and bridges
+    /// </summary>
+    void PlaceFlyingEyeMonsters()
+    {
+        // Place Flying Eye monsters in the MIDDLE of night paths where players will definitely encounter them
         // Position them on top of night blocks, in the center of platforms/bridges
         
-        // Monster 1: Middle of night bridge 1 (player must cross this)
-        CreateMonster(new Vector3(9f * blockSize, 1.15f, 0f));
+        // Flying Eye 1: Middle of night bridge 1 (player must cross this)
+        CreateMonster(new Vector3(9f * blockSize, 1.15f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 2: Middle of night platform 1 (landing area - player will land here)
-        CreateMonster(new Vector3(15.5f * blockSize, 1.55f, 0f));
+        // Flying Eye 2: Middle of night platform 1 (landing area - player will land here)
+        CreateMonster(new Vector3(15.5f * blockSize, 1.55f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 3: Middle of night staircase 1 (player climbing up)
-        CreateMonster(new Vector3(20f * blockSize, 1.7f, 0f));
+        // Flying Eye 3: Middle of night staircase 1 (player climbing up)
+        CreateMonster(new Vector3(20f * blockSize, 1.7f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 4: Middle of night platform 2 (high landing - player must pass)
-        CreateMonster(new Vector3(27f * blockSize, 2.35f, 0f));
+        // Flying Eye 4: Middle of night platform 2 (high landing - player must pass)
+        CreateMonster(new Vector3(27f * blockSize, 2.35f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 5: Middle of night bridge 2 (long bridge - player must cross)
-        CreateMonster(new Vector3(35f * blockSize, 2.1f, 0f));
+        // Flying Eye 5: Middle of night bridge 2 (long bridge - player must cross)
+        CreateMonster(new Vector3(35f * blockSize, 2.1f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 6: Middle of night platform 3 (mid-level landing)
-        CreateMonster(new Vector3(42f * blockSize, 2.05f, 0f));
+        // Flying Eye 6: Middle of night platform 3 (mid-level landing)
+        CreateMonster(new Vector3(42f * blockSize, 2.05f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 7: Middle of night staircase 2 (player climbing)
-        CreateMonster(new Vector3(47f * blockSize, 2.15f, 0f));
+        // Flying Eye 7: Middle of night staircase 2 (player climbing)
+        CreateMonster(new Vector3(47f * blockSize, 2.15f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 8: Middle of night platform 4 (high point)
-        CreateMonster(new Vector3(52f * blockSize, 2.5f, 0f));
+        // Flying Eye 8: Middle of night platform 4 (high point)
+        CreateMonster(new Vector3(52f * blockSize, 2.5f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 9: Middle of night bridge 3 (long descent bridge)
-        CreateMonster(new Vector3(60f * blockSize, 2.15f, 0f));
+        // Flying Eye 9: Middle of night bridge 3 (long descent bridge)
+        CreateMonster(new Vector3(60f * blockSize, 2.15f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 10: Middle of night platform 5 (lower landing)
-        CreateMonster(new Vector3(70f * blockSize, 1.9f, 0f));
+        // Flying Eye 10: Middle of night platform 5 (lower landing)
+        CreateMonster(new Vector3(70f * blockSize, 1.9f, 0f), Monster.MonsterType.FlyingEye);
         
-        // Monster 11: Middle of night bridge 4 (final bridge to finish)
-        CreateMonster(new Vector3(80f * blockSize, 1.7f, 0f));
+        // Flying Eye 11: Middle of night bridge 4 (final bridge to finish)
+        CreateMonster(new Vector3(80f * blockSize, 1.7f, 0f), Monster.MonsterType.FlyingEye);
+    }
+    
+    /// <summary>
+    /// Place Mushroom monsters on top of grass blocks
+    /// Finds all grass blocks and places mushrooms on them at strategic intervals
+    /// </summary>
+    void PlaceMushroomMonstersOnGrass()
+    {
+        // Find all grass blocks (FloorBlock with FloorType.Grass)
+        FloorBlock[] allFloorBlocks = FindObjectsByType<FloorBlock>(FindObjectsSortMode.None);
+        List<Vector3> grassBlockPositions = new List<Vector3>();
+        
+        foreach (FloorBlock floorBlock in allFloorBlocks)
+        {
+            if (floorBlock.floorType == FloorBlock.FloorType.Grass)
+            {
+                // Get the top of the grass block
+                Collider2D col = floorBlock.GetComponent<Collider2D>();
+                if (col != null)
+                {
+                    float grassTop = col.bounds.max.y;
+                    Vector3 mushroomPos = new Vector3(floorBlock.transform.position.x, grassTop, 0f);
+                    grassBlockPositions.Add(mushroomPos);
+                }
+            }
+        }
+        
+        // Sort grass blocks by X position
+        grassBlockPositions.Sort((a, b) => a.x.CompareTo(b.x));
+        
+        // Place mushrooms on grass blocks at strategic intervals
+        // Don't place too close together, and avoid placing near player start
+        float minDistanceBetweenMushrooms = 5f * blockSize; // At least 5 blocks apart
+        float playerStartX = 1f * blockSize;
+        float avoidStartArea = playerStartX + (10f * blockSize); // Avoid first 10 blocks after start
+        
+        float lastMushroomX = -1000f; // Start far left
+        int mushroomsPlaced = 0;
+        
+        foreach (Vector3 grassPos in grassBlockPositions)
+        {
+            // Skip if too close to player start
+            if (grassPos.x < avoidStartArea)
+            {
+                continue;
+            }
+            
+            // Skip if too close to previous mushroom
+            if (grassPos.x - lastMushroomX < minDistanceBetweenMushrooms)
+            {
+                continue;
+            }
+            
+            // Skip if too close to finish line
+            int blocksPerOriginal = 10;
+            float subBlockSize = blockSize / blocksPerOriginal;
+            float finishX = (totalFloorBlocks * blockSize) + (blocksPerOriginal * subBlockSize) - 2f;
+            if (grassPos.x > finishX - (5f * blockSize))
+            {
+                continue;
+            }
+            
+            // Place mushroom on this grass block
+            CreateMonster(grassPos, Monster.MonsterType.Mushroom);
+            lastMushroomX = grassPos.x;
+            mushroomsPlaced++;
+        }
+        
+        Debug.Log($"Found {grassBlockPositions.Count} grass blocks, placed {mushroomsPlaced} mushrooms on grass blocks");
     }
     
     /// <summary>
@@ -1213,15 +1291,17 @@ public class FirstLevelGenerator : MonoBehaviour
         }
     }
     
-    void CreateMonster(Vector3 position)
+    void CreateMonster(Vector3 position, Monster.MonsterType monsterType = Monster.MonsterType.FlyingEye)
     {
-        GameObject monster = new GameObject("Monster");
+        GameObject monster = new GameObject($"Monster_{monsterType}");
         monster.transform.position = position;
         monster.transform.SetParent(itemsParent);
         
         Monster monsterComponent = monster.AddComponent<Monster>();
-        monsterComponent.monsterColor = new Color(0.8f, 0.2f, 0.2f); // Red
+        monsterComponent.monsterType = monsterType;
+        monsterComponent.monsterColor = Color.white; // White to preserve sprite colors
         monsterComponent.size = 0.8f; // Slightly smaller than a block
+        monsterComponent.visibleOnlyAtNight = true; // Monsters only appear at night
         // Note: Monster handles death through GameManager, no need for restartLevelOnDeath or levelSceneName
     }
     
@@ -1242,9 +1322,9 @@ public class FirstLevelGenerator : MonoBehaviour
         if (playerPrefab != null)
         {
             // Destroy any existing player first
-            GameObject existingPlayer = GameObject.FindGameObjectWithTag("Player");
-            if (existingPlayer != null)
-            {
+        GameObject existingPlayer = GameObject.FindGameObjectWithTag("Player");
+        if (existingPlayer != null)
+        {
                 DestroyImmediate(existingPlayer);
             }
             
@@ -1445,7 +1525,7 @@ public class FirstLevelGenerator : MonoBehaviour
         // Add Rigidbody2D
         Rigidbody2D rb = player.AddComponent<Rigidbody2D>();
         rb.bodyType = RigidbodyType2D.Dynamic;
-        rb.freezeRotation = true;
+            rb.freezeRotation = true;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         rb.gravityScale = 3f;
         
@@ -1508,9 +1588,27 @@ public class FirstLevelGenerator : MonoBehaviour
             if (col != null && sprite != null)
             {
                 Vector2 spriteSize = sprite.bounds.size;
-                // Account for the scale we applied (0.6x)
-                col.size = spriteSize; // This will automatically account for transform scale
-                Debug.Log($"Collider size set to match sprite: {col.size} (sprite: {spriteSize})");
+                Vector2 oldSize = col.size;
+                // The collider size should match the sprite bounds exactly
+                // Transform scale (0.6x) affects the visual size, but collider size is in world units
+                col.size = spriteSize; // Exact match to sprite bounds
+                
+                Debug.Log($"[FirstLevelGenerator] Player collider updated - Size: {col.size} | Sprite bounds: {spriteSize} | Transform scale: {playerObj.transform.localScale} | Old size: {oldSize}");
+                
+                // Check actual bounds after setting
+                Bounds colliderBounds = col.bounds;
+                Bounds spriteBounds = sprite.bounds;
+                float diffX = Mathf.Abs(colliderBounds.size.x - spriteBounds.size.x);
+                float diffY = Mathf.Abs(colliderBounds.size.y - spriteBounds.size.y);
+                
+                if (diffX > 0.01f || diffY > 0.01f)
+                {
+                    Debug.LogWarning($"[FirstLevelGenerator] Player SIZE MISMATCH! Collider bounds: {colliderBounds.size} vs Sprite bounds: {spriteBounds.size} (diff: {diffX:F4}, {diffY:F4})");
+                }
+                else
+                {
+                    Debug.Log($"[FirstLevelGenerator] Player collider matches sprite bounds ✓");
+                }
             }
         }
     }
