@@ -114,6 +114,9 @@ public class FirstLevelGenerator : MonoBehaviour
         // Setup death screen
         SetupDeathScreen();
         
+        // Setup winner screen
+        SetupWinnerScreen();
+        
         // Setup clouds in the sky
         SetupClouds();
         
@@ -214,6 +217,21 @@ public class FirstLevelGenerator : MonoBehaviour
         {
             GameObject deathScreenObj = new GameObject("DeathScreen");
             DeathScreen deathScreen = deathScreenObj.AddComponent<DeathScreen>();
+        }
+    }
+    
+    /// <summary>
+    /// Setup winner screen for level completion
+    /// </summary>
+    void SetupWinnerScreen()
+    {
+        // Check if winner screen already exists
+        WinnerScreen existingWinnerScreen = FindFirstObjectByType<WinnerScreen>();
+        if (existingWinnerScreen == null)
+        {
+            GameObject winnerScreenObj = new GameObject("WinnerScreen");
+            WinnerScreen winnerScreen = winnerScreenObj.AddComponent<WinnerScreen>();
+            winnerScreen.SetCurrentLevel(1); // Level 1
         }
     }
     
@@ -809,25 +827,68 @@ public class FirstLevelGenerator : MonoBehaviour
         List<Vector3> placedBoltPositions = new List<Vector3>(); // Track placed bolts to avoid clustering
         float minDistanceBetweenBolts = 8f * blockSize; // Minimum distance between bolts to spread them out
         
-        // Candidate positions near night blocks - prioritize positions above blocks
+        // Also collect grass block positions (floor blocks) as valid platforms
+        List<Vector3> grassBlockPositions = new List<Vector3>();
+        FloorBlock[] allFloorBlocks = FindObjectsByType<FloorBlock>(FindObjectsSortMode.None);
+        foreach (FloorBlock floorBlock in allFloorBlocks)
+        {
+            if (floorBlock.floorType == FloorBlock.FloorType.Grass)
+            {
+                Collider2D col = floorBlock.GetComponent<Collider2D>();
+                if (col != null)
+                {
+                    float grassTop = col.bounds.max.y;
+                    Vector3 grassPos = new Vector3(floorBlock.transform.position.x, grassTop, 0f);
+                    grassBlockPositions.Add(grassPos);
+                }
+            }
+        }
+        
+        // Combine night blocks and grass blocks as valid platforms
+        List<Vector3> allPlatformPositions = new List<Vector3>();
+        allPlatformPositions.AddRange(nightBlockPositions);
+        allPlatformPositions.AddRange(grassBlockPositions);
+        
+        // Candidate positions near platforms/chão - prioritize positions close to ground
         List<Vector3> candidatePositions = new List<Vector3>();
         
-        // Generate candidate positions above night blocks (not all around, just above)
+        // Generate candidate positions above night blocks (closer to ground)
         foreach (Vector3 nightBlockPos in nightBlockPositions)
         {
-            // Try positions above the block at different heights
-            for (float height = 1.0f; height <= 2.5f; height += 0.3f)
+            // Try positions above the block at lower heights (more reachable)
+            for (float height = 0.8f; height <= 2.0f; height += 0.2f)
             {
                 Vector3 candidatePos = nightBlockPos + new Vector3(0f, height, 0f);
                 candidatePositions.Add(candidatePos);
             }
             
-            // Also try slightly to the left and right
-            for (float offset = -1.5f; offset <= 1.5f; offset += 0.5f)
+            // Also try slightly to the left and right, but closer to ground
+            for (float offset = -1.0f; offset <= 1.0f; offset += 0.5f)
             {
-                for (float height = 1.2f; height <= 2.0f; height += 0.3f)
+                for (float height = 1.0f; height <= 1.8f; height += 0.2f)
                 {
                     Vector3 candidatePos = nightBlockPos + new Vector3(offset * blockSize, height, 0f);
+                    candidatePositions.Add(candidatePos);
+                }
+            }
+        }
+        
+        // Also generate positions above grass blocks (chão)
+        foreach (Vector3 grassPos in grassBlockPositions)
+        {
+            // Place bolts just above grass blocks (chão)
+            for (float height = 0.5f; height <= 1.5f; height += 0.2f)
+            {
+                Vector3 candidatePos = grassPos + new Vector3(0f, height, 0f);
+                candidatePositions.Add(candidatePos);
+            }
+            
+            // Try slightly to the sides
+            for (float offset = -0.8f; offset <= 0.8f; offset += 0.4f)
+            {
+                for (float height = 0.8f; height <= 1.3f; height += 0.2f)
+                {
+                    Vector3 candidatePos = grassPos + new Vector3(offset * blockSize, height, 0f);
                     candidatePositions.Add(candidatePos);
                 }
             }
@@ -848,7 +909,20 @@ public class FirstLevelGenerator : MonoBehaviour
         {
             if (boltsPlaced >= 12) break;
             
-            // Check distance to nearest night block
+            // Check distance to nearest platform (night block or grass/chão)
+            float minDistToPlatform = float.MaxValue;
+            Vector3 nearestPlatformPos = Vector3.zero;
+            foreach (Vector3 platformPos in allPlatformPositions)
+            {
+                float dist = Vector3.Distance(candidatePos, platformPos);
+                if (dist < minDistToPlatform)
+                {
+                    minDistToPlatform = dist;
+                    nearestPlatformPos = platformPos;
+                }
+            }
+            
+            // Also check distance to nearest night block specifically
             float minDistToNight = float.MaxValue;
             foreach (Vector3 nightPos in nightBlockPositions)
             {
@@ -858,6 +932,11 @@ public class FirstLevelGenerator : MonoBehaviour
                     minDistToNight = dist;
                 }
             }
+            
+            // Ensure bolt is close to a platform/chão (within 2 blocks horizontally and reasonable vertically)
+            float horizontalDist = Mathf.Abs(candidatePos.x - nearestPlatformPos.x);
+            float verticalDist = candidatePos.y - nearestPlatformPos.y;
+            bool closeToPlatform = horizontalDist <= 2f * blockSize && verticalDist >= 0.3f && verticalDist <= 2.5f;
             
             // Check distance to nearest day block
             float minDistToDay = float.MaxValue;
@@ -890,7 +969,8 @@ public class FirstLevelGenerator : MonoBehaviour
             // CRITICAL: Check if position is NOT inside any block (must have background behind)
             bool notInsideBlock = !IsPositionInsideBlock(candidatePos);
             
-            if (withinNightRange && farFromDayBlocks && spreadOut && notInsideBlock)
+            // CRITICAL: Must be close to a platform or chão
+            if (withinNightRange && farFromDayBlocks && spreadOut && notInsideBlock && closeToPlatform)
             {
                 CreateLightningBolt(candidatePos);
                 placedBoltPositions.Add(candidatePos);

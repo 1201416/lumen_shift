@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 /// <summary>
 /// Basic player controller - placeholder for player movement and interaction.
@@ -19,6 +20,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private bool isGrounded = false;
     private Vector2 lastPosition;
+    private Sprite lastSprite = null; // Track sprite changes to avoid unnecessary updates
     
     // Public getters for animation controller
     public float GetHorizontalVelocity() => rb != null ? rb.linearVelocity.x : 0f;
@@ -59,52 +61,36 @@ public class PlayerController : MonoBehaviour
         sr.sortingOrder = 1; // Ensure character is above ground
         sr.drawMode = SpriteDrawMode.Simple;
         
-        // Ensure we have a collider - check for existing collider first
+        // Ensure we have a collider based on sprite shape (PolygonCollider2D)
+        // This creates a hitbox that matches the actual sprite pixels, not a rectangle
         Collider2D existingCollider = GetComponent<Collider2D>();
-        if (existingCollider == null)
+        
+        // Remove existing BoxCollider2D or CapsuleCollider2D if present (we want PolygonCollider2D)
+        if (existingCollider != null && (existingCollider is BoxCollider2D || existingCollider is CapsuleCollider2D))
         {
-            // No collider exists, add BoxCollider2D
-            BoxCollider2D col = gameObject.AddComponent<BoxCollider2D>();
-            col.isTrigger = false; // Must be solid for physics
-            col.usedByEffector = false; // Don't use physics materials that might affect collision
-            
-            // CRITICAL: Size collider to match sprite EXACTLY
-            if (sr.sprite != null)
-            {
-                Vector2 spriteSize = sr.sprite.bounds.size;
-                col.size = spriteSize; // Exact match to sprite size
-            }
-            else
-            {
-                // Fallback size if no sprite yet
-                col.size = new Vector2(0.875f, 0.5625f);
-            }
+            #if UNITY_EDITOR
+            DestroyImmediate(existingCollider);
+            #else
+            Destroy(existingCollider);
+            #endif
+            existingCollider = null;
         }
-        else
+        
+        PolygonCollider2D polygonCol = GetComponent<PolygonCollider2D>();
+        if (polygonCol == null)
         {
-            // Collider exists, ensure it's configured correctly
-            existingCollider.isTrigger = false; // Must be solid for physics
-            
-            // CRITICAL: Auto-size collider to match sprite EXACTLY if sprite exists
-            if (sr.sprite != null)
-            {
-                Vector2 spriteSize = sr.sprite.bounds.size;
-                if (existingCollider is BoxCollider2D boxCol)
-                {
-                    Vector2 oldSize = boxCol.size;
-                    boxCol.size = spriteSize; // Exact match to sprite size
-                    boxCol.usedByEffector = false;
-                    Debug.Log($"[PlayerController] Collider size set to match sprite: {boxCol.size} (sprite bounds: {spriteSize}, transform scale: {transform.localScale}, old size: {oldSize})");
-                }
-                else if (existingCollider is CapsuleCollider2D capsuleCol)
-                {
-                    Vector2 oldSize = capsuleCol.size;
-                    // For capsule, match sprite dimensions exactly
-                    capsuleCol.size = spriteSize; // Exact match
-                    capsuleCol.usedByEffector = false;
-                    Debug.Log($"[PlayerController] Capsule collider size set to match sprite: {capsuleCol.size} (sprite bounds: {spriteSize}, transform scale: {transform.localScale}, old size: {oldSize})");
-                }
-            }
+            // No polygon collider exists, add one
+            polygonCol = gameObject.AddComponent<PolygonCollider2D>();
+        }
+        
+        polygonCol.isTrigger = false; // Must be solid for physics
+        polygonCol.usedByEffector = false; // Don't use physics materials that might affect collision
+        
+        // CRITICAL: Generate polygon collider from sprite shape
+        // This will create a hitbox that matches the actual sprite pixels
+        if (sr.sprite != null)
+        {
+            SetupPolygonColliderFromSprite(polygonCol, sr.sprite);
         }
         
         // Ensure transform rotation is correct (facing right, not sideways)
@@ -333,7 +319,9 @@ public class PlayerController : MonoBehaviour
                 {
                     // Normal movement - try to step up if grounded
                     // BUT: Don't step up if we're underneath a block (check first)
-                    if (horizontal != 0 && isGrounded && !IsUnderneathBlock())
+                    // CRITICAL: Also check if there's a block directly ahead and above
+                    bool canStepUp = horizontal != 0 && isGrounded && !IsUnderneathBlock() && !IsBlockAheadAndAbove(horizontal);
+                    if (canStepUp)
                     {
                         TryStepUp(horizontal, currentMoveSpeed);
                     }
@@ -363,6 +351,39 @@ public class PlayerController : MonoBehaviour
         }
         
         lastPosition = transform.position;
+    }
+    
+    /// <summary>
+    /// Check if there's a block ahead and above the player (prevents stepping up into blocks)
+    /// </summary>
+    bool IsBlockAheadAndAbove(float horizontal)
+    {
+        Collider2D playerCollider = GetComponent<Collider2D>();
+        if (playerCollider == null) return false;
+        
+        float playerTop = playerCollider.bounds.max.y;
+        float playerBottom = playerCollider.bounds.min.y;
+        float playerHeight = playerCollider.bounds.size.y;
+        
+        // Check if there's a block ahead and above player's current position
+        Vector2 rayOrigin = new Vector2(
+            transform.position.x + (horizontal * playerCollider.bounds.size.x * 0.6f),
+            playerTop + 0.1f // Check slightly above player
+        );
+        
+        // Cast upward to see if there's a block
+        RaycastHit2D hit = Physics2D.Raycast(rayOrigin, Vector2.up, playerHeight * 0.5f);
+        if (hit.collider != null)
+        {
+            if (hit.collider.GetComponent<BoxBlock>() != null || 
+                hit.collider.GetComponent<FloorBlock>() != null)
+            {
+                // There's a block above - don't step up
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     /// <summary>
@@ -409,6 +430,23 @@ public class PlayerController : MonoBehaviour
                             hitForward.point.x + (horizontal * playerHalfWidth * 0.3f),
                             blockTop + playerHalfHeight + 0.02f
                         );
+                        
+                        // CRITICAL: Check if there's a block above the step-up position
+                        // Cast upward from the step-up position
+                        RaycastHit2D blockAbove = Physics2D.Raycast(
+                            checkPosition + Vector2.up * playerHalfHeight * 0.5f,
+                            Vector2.up,
+                            playerHalfHeight * 0.8f
+                        );
+                        
+                        // If there's a block above, don't step up
+                        if (blockAbove.collider != null && 
+                            (blockAbove.collider.GetComponent<BoxBlock>() != null || 
+                             blockAbove.collider.GetComponent<FloorBlock>() != null))
+                        {
+                            // Block above - can't step up
+                            return;
+                        }
                         
                         // Use OverlapBox to check if player fits (use bounds size)
                         Collider2D overlap = Physics2D.OverlapBox(
@@ -769,31 +807,151 @@ public class PlayerController : MonoBehaviour
         }
     }
     
-    void LateUpdate()
+    /// <summary>
+    /// Setup PolygonCollider2D to match the sprite's actual shape (pixels)
+    /// This creates a hitbox that follows the sprite image, not a rectangle
+    /// </summary>
+    void SetupPolygonColliderFromSprite(PolygonCollider2D polygonCol, Sprite sprite)
     {
-        // CRITICAL: Ensure collider matches sprite size exactly after sprite is loaded
-        // This runs after all updates to ensure sprite is set
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
-        Collider2D col = GetComponent<Collider2D>();
+        if (sprite == null || polygonCol == null) return;
         
-        if (sr != null && sr.sprite != null && col != null)
+        // Unity can automatically generate polygon collider paths from sprite physics shape
+        // First, try to use the sprite's physics shape if available (best option)
+        if (sprite.GetPhysicsShapeCount() > 0)
         {
-            Vector2 spriteSize = sr.sprite.bounds.size;
-            
-            if (col is BoxCollider2D boxCol)
+            // Use the sprite's physics shape directly - this is the most accurate
+            polygonCol.pathCount = sprite.GetPhysicsShapeCount();
+            for (int i = 0; i < sprite.GetPhysicsShapeCount(); i++)
             {
-                // Only update if sizes don't match (avoid constant updates)
-                if (Vector2.Distance(boxCol.size, spriteSize) > 0.001f)
+                List<Vector2> path = new List<Vector2>();
+                sprite.GetPhysicsShape(i, path);
+                polygonCol.SetPath(i, path);
+            }
+        }
+        else
+        {
+            // If no physics shape, generate polygon from sprite texture pixels
+            // This creates a hitbox that matches the actual visible pixels
+            GeneratePolygonFromSpritePixels(polygonCol, sprite);
+        }
+    }
+    
+    /// <summary>
+    /// Generate a polygon collider from sprite pixels (alpha channel)
+    /// Creates a hitbox that matches only the visible parts of the sprite
+    /// </summary>
+    void GeneratePolygonFromSpritePixels(PolygonCollider2D polygonCol, Sprite sprite)
+    {
+        if (sprite == null || polygonCol == null) return;
+        
+        Texture2D texture = sprite.texture;
+        if (texture == null) return;
+        
+        // Check if texture is readable (some textures are compressed and not readable)
+        try
+        {
+            // Try to read pixels - this will fail if texture is not readable
+            texture.GetPixel(0, 0);
+        }
+        catch
+        {
+            // Texture is not readable, use sprite bounds as fallback
+            Bounds bounds = sprite.bounds;
+            Vector2[] points = new Vector2[4];
+            points[0] = new Vector2(bounds.min.x, bounds.min.y);
+            points[1] = new Vector2(bounds.max.x, bounds.min.y);
+            points[2] = new Vector2(bounds.max.x, bounds.max.y);
+            points[3] = new Vector2(bounds.min.x, bounds.max.y);
+            polygonCol.pathCount = 1;
+            polygonCol.SetPath(0, points);
+            return;
+        }
+        
+        // Get sprite rect in texture coordinates
+        Rect spriteRect = sprite.textureRect;
+        int width = (int)spriteRect.width;
+        int height = (int)spriteRect.height;
+        
+        // Read pixels from sprite region
+        Color[] pixels = texture.GetPixels(
+            (int)spriteRect.x,
+            (int)spriteRect.y,
+            width,
+            height
+        );
+        
+        // Find the bounding box of non-transparent pixels
+        int minX = width, maxX = 0, minY = height, maxY = 0;
+        bool foundPixel = false;
+        
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int index = y * width + x;
+                if (pixels[index].a > 0.1f) // Non-transparent pixel
                 {
-                    boxCol.size = spriteSize; // Exact match to sprite size
+                    foundPixel = true;
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
                 }
             }
-            else if (col is CapsuleCollider2D capsuleCol)
+        }
+        
+        if (!foundPixel)
+        {
+            // Fallback to sprite bounds if no pixels found
+            Bounds bounds = sprite.bounds;
+            Vector2[] points = new Vector2[4];
+            points[0] = new Vector2(bounds.min.x, bounds.min.y);
+            points[1] = new Vector2(bounds.max.x, bounds.min.y);
+            points[2] = new Vector2(bounds.max.x, bounds.max.y);
+            points[3] = new Vector2(bounds.min.x, bounds.max.y);
+            polygonCol.pathCount = 1;
+            polygonCol.SetPath(0, points);
+            return;
+        }
+        
+        // Convert pixel coordinates to world coordinates
+        // Sprite pivot is at center (0.5, 0.5) based on sprite creation
+        float pixelToWorld = sprite.pixelsPerUnit;
+        float spriteWidthWorld = width / pixelToWorld;
+        float spriteHeightWorld = height / pixelToWorld;
+        
+        // Calculate world positions relative to sprite center
+        float left = (minX - width * 0.5f) / pixelToWorld;
+        float right = (maxX - width * 0.5f) / pixelToWorld;
+        float bottom = (minY - height * 0.5f) / pixelToWorld;
+        float top = (maxY - height * 0.5f) / pixelToWorld;
+        
+        // Create a tight-fitting polygon (can be simplified to 4 points for performance)
+        // For better accuracy, we could trace the outline, but 4 points is good for performance
+        Vector2[] points2 = new Vector2[4];
+        points2[0] = new Vector2(left, bottom);   // Bottom-left
+        points2[1] = new Vector2(right, bottom);  // Bottom-right
+        points2[2] = new Vector2(right, top);      // Top-right
+        points2[3] = new Vector2(left, top);       // Top-left
+        
+        polygonCol.pathCount = 1;
+        polygonCol.SetPath(0, points2);
+    }
+    
+    void LateUpdate()
+    {
+        // CRITICAL: Ensure polygon collider matches sprite shape after sprite is loaded
+        // This runs after all updates to ensure sprite is set
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        PolygonCollider2D polygonCol = GetComponent<PolygonCollider2D>();
+        
+        if (sr != null && sr.sprite != null && polygonCol != null)
+        {
+            // Only regenerate polygon collider if sprite changed (optimization)
+            if (sr.sprite != lastSprite)
             {
-                if (Vector2.Distance(capsuleCol.size, spriteSize) > 0.001f)
-                {
-                    capsuleCol.size = spriteSize; // Exact match to sprite size
-                }
+                SetupPolygonColliderFromSprite(polygonCol, sr.sprite);
+                lastSprite = sr.sprite;
             }
         }
     }

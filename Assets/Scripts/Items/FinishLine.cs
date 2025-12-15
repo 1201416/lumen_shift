@@ -21,7 +21,7 @@ public class FinishLine : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private bool isCompleted = false;
     private GameManager gameManager;
-    private ConclusionScreen conclusionScreen;
+    private WinnerScreen winnerScreen;
     
     void Awake()
     {
@@ -62,13 +62,13 @@ public class FinishLine : MonoBehaviour
     void Start()
     {
         gameManager = FindFirstObjectByType<GameManager>();
-        conclusionScreen = FindFirstObjectByType<ConclusionScreen>();
+        winnerScreen = FindFirstObjectByType<WinnerScreen>();
         
-        // Create conclusion screen if it doesn't exist
-        if (conclusionScreen == null)
+        // Create winner screen if it doesn't exist
+        if (winnerScreen == null)
         {
-            GameObject conclusionObj = new GameObject("ConclusionScreen");
-            conclusionScreen = conclusionObj.AddComponent<ConclusionScreen>();
+            GameObject winnerObj = new GameObject("WinnerScreen");
+            winnerScreen = winnerObj.AddComponent<WinnerScreen>();
         }
     }
     
@@ -232,10 +232,10 @@ public class FinishLine : MonoBehaviour
     /// </summary>
     void HandleLevelCompletion()
     {
-        // Show conclusion screen
-        if (conclusionScreen != null)
+        // Show winner screen
+        if (winnerScreen != null)
         {
-            conclusionScreen.ShowConclusionScreen();
+            winnerScreen.ShowWinnerScreen();
         }
         else
         {
