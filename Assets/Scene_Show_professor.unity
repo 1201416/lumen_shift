@@ -241,8 +241,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level13Generator
   blockSize: 1
-  totalFloorBlocks: 170
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -296,8 +294,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level7Generator
   blockSize: 1
-  totalFloorBlocks: 90
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -351,8 +347,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level14Generator
   blockSize: 1
-  totalFloorBlocks: 185
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -406,8 +400,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level10Generator
   blockSize: 1
-  totalFloorBlocks: 120
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -461,8 +453,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level3Generator
   blockSize: 1
-  totalFloorBlocks: 140
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -600,8 +590,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level11Generator
   blockSize: 1
-  totalFloorBlocks: 130
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -655,8 +643,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level15Generator
   blockSize: 1
-  totalFloorBlocks: 200
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -672,6 +658,67 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1350928515}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.0788, y: -0.19121, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1515537003
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1515537005}
+  - component: {fileID: 1515537004}
+  m_Layer: 0
+  m_Name: LevelManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1515537004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1515537003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 878b2062b69ff4b5dbe9d24c4a74e204, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelManager
+  level1Generator: {fileID: 1753200385}
+  level2Generator: {fileID: 1253168569}
+  level3Generator: {fileID: 865716876}
+  level4Generator: {fileID: 1926800222}
+  level5Generator: {fileID: 1614906049}
+  level6Generator: {fileID: 1896941577}
+  level7Generator: {fileID: 414918523}
+  level8Generator: {fileID: 1744748212}
+  level9Generator: {fileID: 1957473728}
+  level10Generator: {fileID: 817577739}
+  level11Generator: {fileID: 1275488154}
+  level12Generator: {fileID: 0}
+  level13Generator: {fileID: 149120086}
+  level14Generator: {fileID: 665612262}
+  level15Generator: {fileID: 1350928516}
+  currentLevel: 1
+  totalLevels: 15
+--- !u!4 &1515537005
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1515537003}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.0788, y: -0.19121, z: 0}
@@ -710,8 +757,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level5Generator
   blockSize: 1
-  totalFloorBlocks: 180
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -765,8 +810,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level8Generator
   blockSize: 1
-  totalFloorBlocks: 100
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -875,8 +918,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level6Generator
   blockSize: 1
-  totalFloorBlocks: 80
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -930,8 +971,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level4Generator
   blockSize: 1
-  totalFloorBlocks: 120
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -985,8 +1024,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Level9Generator
   blockSize: 1
-  totalFloorBlocks: 110
-  visibleBlocks: 16
   floorBlockPrefab: {fileID: 0}
   boxBlockPrefab: {fileID: 0}
   lightningBoltPrefab: {fileID: 0}
@@ -1030,3 +1067,4 @@ SceneRoots:
   - {fileID: 665612263}
   - {fileID: 1350928517}
   - {fileID: 1107825441}
+  - {fileID: 1515537005}

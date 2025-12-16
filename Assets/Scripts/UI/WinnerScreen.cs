@@ -447,48 +447,26 @@ public class WinnerScreen : MonoBehaviour
         Time.timeScale = 1f;
         HideWinnerScreen();
         
-        // Try to use LevelManager first (for same-scene progression)
+        // Use LevelManager for same-scene progression (all levels are in one scene)
         LevelManager levelManager = FindFirstObjectByType<LevelManager>();
         if (levelManager != null)
         {
+            // Ensure we have the correct current level before loading next
+            // Use WinnerScreen's detected level if LevelManager's is incorrect
+            if (levelManager.currentLevel != currentLevelNumber)
+            {
+                Debug.LogWarning($"LevelManager currentLevel ({levelManager.currentLevel}) doesn't match WinnerScreen currentLevelNumber ({currentLevelNumber}). Updating LevelManager.");
+                levelManager.currentLevel = currentLevelNumber;
+            }
+            
+            Debug.Log($"WinnerScreen: Going to next level. Current: {currentLevelNumber}, Next: {currentLevelNumber + 1}");
             levelManager.LoadNextLevel();
             return;
         }
         
-        // Fallback: use scene-based loading
-        if (HasNextLevel())
-        {
-            int nextLevel = currentLevelNumber + 1;
-            
-            // Try to load next level scene
-            if (nextLevel <= levelSceneNames.Length && !string.IsNullOrEmpty(levelSceneNames[nextLevel - 1]))
-            {
-                string nextSceneName = levelSceneNames[nextLevel - 1];
-                Debug.Log($"Loading Level {nextLevel}: {nextSceneName}");
-                SceneManager.LoadScene(nextSceneName);
-            }
-            else
-            {
-                // Fallback: reload current scene if next level doesn't exist
-                Debug.LogWarning($"Next level scene not found! Reloading current level.");
-                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            }
-        }
-        else
-        {
-            // Final level complete - return to first level (Level 1)
-            Debug.Log("All levels complete! Returning to Level 1...");
-            // Load first level scene
-            if (levelSceneNames.Length > 0 && !string.IsNullOrEmpty(levelSceneNames[0]))
-            {
-                SceneManager.LoadScene(levelSceneNames[0]);
-            }
-            else
-            {
-                // Fallback: reload current scene
-                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            }
-        }
+        // If LevelManager doesn't exist, log error and reload current scene
+        Debug.LogError("LevelManager not found! Cannot load next level. Please ensure LevelManager exists in the scene.");
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
     
     /// <summary>

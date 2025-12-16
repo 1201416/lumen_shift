@@ -256,7 +256,6 @@ public class Monster : MonoBehaviour
             Vector2 spriteSize = spriteRenderer.sprite.bounds.size;
             monsterCollider.size = spriteSize * 0.4f; // 40% of sprite size for very tight hitbox
             
-            Debug.Log($"[Monster] {monsterType} - Collider size set to 40% of sprite: {monsterCollider.size} (sprite bounds: {spriteSize}, transform scale: {transform.localScale})");
         }
         
         // Future: Initialize movement if canMove is enabled

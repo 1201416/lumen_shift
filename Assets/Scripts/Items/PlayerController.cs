@@ -19,9 +19,11 @@ public class PlayerController : MonoBehaviour
     public float maxStepHeight = 1.1f; // Slightly more than 1 block to allow stepping up
     
     private Rigidbody2D rb;
+    private SpriteRenderer spriteRenderer;
     private bool isGrounded = false;
     private Vector2 lastPosition;
     private Sprite lastSprite = null; // Track sprite changes to avoid unnecessary updates
+    private float lastHorizontalDirection = 1f; // Track last movement direction (1 = right, -1 = left)
     
     // Public getters for animation controller
     public float GetHorizontalVelocity() => rb != null ? rb.linearVelocity.x : 0f;
@@ -44,23 +46,23 @@ public class PlayerController : MonoBehaviour
         rb.interpolation = RigidbodyInterpolation2D.Interpolate; // Smooth movement
         
         // Ensure we have a sprite renderer for visibility
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
-        if (sr == null)
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
         {
-            sr = gameObject.AddComponent<SpriteRenderer>();
+            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
         }
         
         // Only create and set default sprite if no sprite is already assigned
         // This allows manually assigned sprites (like Virtual Guy) to be preserved
-        if (sr.sprite == null)
+        if (spriteRenderer.sprite == null)
         {
             Sprite playerSprite = CreateDefaultPlayerSprite();
-            sr.sprite = playerSprite;
+            spriteRenderer.sprite = playerSprite;
         }
         
-        sr.color = Color.white; // Use white to show sprite colors properly
-        sr.sortingOrder = 1; // Ensure character is above ground
-        sr.drawMode = SpriteDrawMode.Simple;
+        spriteRenderer.color = Color.white; // Use white to show sprite colors properly
+        spriteRenderer.sortingOrder = 1; // Ensure character is above ground
+        spriteRenderer.drawMode = SpriteDrawMode.Simple;
         
         // Ensure we have a collider based on sprite shape (PolygonCollider2D)
         // This creates a hitbox that matches the actual sprite pixels, not a rectangle
@@ -89,9 +91,9 @@ public class PlayerController : MonoBehaviour
         
         // CRITICAL: Generate polygon collider from sprite shape
         // This will create a hitbox that matches the actual sprite pixels
-        if (sr.sprite != null)
+        if (spriteRenderer.sprite != null)
         {
-            SetupPolygonColliderFromSprite(polygonCol, sr.sprite);
+            SetupPolygonColliderFromSprite(polygonCol, spriteRenderer.sprite);
         }
         
         // Ensure transform rotation is correct (facing right, not sideways)
@@ -319,6 +321,17 @@ public class PlayerController : MonoBehaviour
         // Basic horizontal movement
         // Reduce speed by half when in air
         float currentMoveSpeed = isGrounded ? moveSpeed : moveSpeed * airMovementMultiplier;
+        
+        // Flip sprite based on movement direction
+        if (horizontal != 0)
+        {
+            lastHorizontalDirection = Mathf.Sign(horizontal);
+            if (spriteRenderer != null)
+            {
+                // Flip sprite: flipX = true when moving left (negative horizontal)
+                spriteRenderer.flipX = horizontal < 0f;
+            }
+        }
         
         // Prevent getting stuck against walls - check if we're pushing against a wall
         if (horizontal != 0)
@@ -1143,16 +1156,20 @@ public class PlayerController : MonoBehaviour
     {
         // CRITICAL: Ensure polygon collider matches sprite shape after sprite is loaded
         // This runs after all updates to ensure sprite is set
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = GetComponent<SpriteRenderer>();
+        }
+        
         PolygonCollider2D polygonCol = GetComponent<PolygonCollider2D>();
         
-        if (sr != null && sr.sprite != null && polygonCol != null)
+        if (spriteRenderer != null && spriteRenderer.sprite != null && polygonCol != null)
         {
             // Only regenerate polygon collider if sprite changed (optimization)
-            if (sr.sprite != lastSprite)
+            if (spriteRenderer.sprite != lastSprite)
             {
-                SetupPolygonColliderFromSprite(polygonCol, sr.sprite);
-                lastSprite = sr.sprite;
+                SetupPolygonColliderFromSprite(polygonCol, spriteRenderer.sprite);
+                lastSprite = spriteRenderer.sprite;
                 // Recalculate jump force if collider changed
                 CalculateJumpForce();
             }

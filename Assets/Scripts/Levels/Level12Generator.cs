@@ -93,32 +93,32 @@ public class Level12Generator : MonoBehaviour
         }
         
         // Platform 1: Small platform at x=6, height 0.5 blocks (lowered)
-        CreateBoxBlock(new Vector3(6f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(6.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(6f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(6.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Platform 2: Small platform at x=12, height 0.5 blocks (lowered)
-        CreateBoxBlock(new Vector3(12f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(12.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Platform 3: Small platform at x=18, height 0.5 blocks (lowered)
-        CreateBoxBlock(new Vector3(18f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(18.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(18f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(18.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Platform 4: Small platform at x=24, height 0.5 blocks (lowered)
-        CreateBoxBlock(new Vector3(24f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(24.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(24f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(24.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Platform 5: Small platform at x=30, height 0.5 blocks (lowered)
-        CreateBoxBlock(new Vector3(30f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(30.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(30f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(30.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Platform 6: Small platform at x=36, height 0.5 blocks (lowered)
-        CreateBoxBlock(new Vector3(36f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(36.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(36f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(36.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Platform 7: Small platform at x=42, height 0.5 blocks (lowered, near finish)
-        CreateBoxBlock(new Vector3(42f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(42.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(42f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(42.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Place monsters (Level 11-12: 3-4 monsters for difficulty)
         CreateMonster(new Vector3(15f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
@@ -126,13 +126,13 @@ public class Level12Generator : MonoBehaviour
         CreateMonster(new Vector3(35f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
         
         // Place 7 lightning bolts (Level 11-12: 7 bolts)
-        CreateLightningBolt(new Vector3(6.25f * blockSize, 0.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(12.25f * blockSize, 0.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(18.25f * blockSize, 0.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(24.25f * blockSize, 0.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(30.25f * blockSize, 0.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(36.25f * blockSize, 0.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(42.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(6.25f * blockSize, 1.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(12.25f * blockSize, 1.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(18.25f * blockSize, 1.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(24.25f * blockSize, 1.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(30.25f * blockSize, 1.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(36.25f * blockSize, 1.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(42.25f * blockSize, 1.5f + 1.5f, 0f));
         
         // Place finish line at the end
         CreateFinishLine(new Vector3(levelLength * blockSize, 1.5f, 0f));
@@ -227,8 +227,22 @@ public class Level12Generator : MonoBehaviour
         cameraFollow.maxX = levelLength * blockSize - cameraHalfWidth;
         cameraFollow.minY = -2f;
         cameraFollow.maxY = 10f;
+
+        // Position camera so player is exactly one block away from left edge
+        float playerStartX = 2f * blockSize;
+        float playerOffsetFromLeft = 1f * blockSize;
+        float leftEdgeX = playerStartX - playerOffsetFromLeft;
+        float initialCameraX = leftEdgeX + cameraHalfWidth;
         
-        mainCamera.transform.position = new Vector3(2f, 2f, -10f);
+        if (playerInstance != null)
+        {
+            float playerX = playerInstance.transform.position.x;
+            leftEdgeX = playerX - playerOffsetFromLeft;
+            initialCameraX = leftEdgeX + cameraHalfWidth;
+            initialCameraX = Mathf.Clamp(initialCameraX, cameraFollow.minX, cameraFollow.maxX);
+        }
+        
+        mainCamera.transform.position = new Vector3(initialCameraX, playerInstance != null ? playerInstance.transform.position.y : 2f, -10f);
     }
 
     void EnsureGameManagerExists()
@@ -382,22 +396,69 @@ public class Level12Generator : MonoBehaviour
 
     GameObject CreateLightningBolt(Vector3 position)
     {
+        // Ensure lightning bolt is near night blocks and away from day blocks
+        Vector3 validatedPosition = ValidateLightningBoltPosition(position);
+        
         GameObject bolt;
         if (lightningBoltPrefab != null)
         {
-            bolt = Instantiate(lightningBoltPrefab, position, Quaternion.identity);
+            bolt = Instantiate(lightningBoltPrefab, validatedPosition, Quaternion.identity);
             bolt.transform.SetParent(itemsParent);
             bolt.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
         }
         else
         {
             bolt = new GameObject("LightningBolt");
-            bolt.transform.position = position;
+            bolt.transform.position = validatedPosition;
             bolt.transform.SetParent(itemsParent);
             bolt.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
             LightningBolt lightningBolt = bolt.AddComponent<LightningBolt>();
         }
         return bolt;
+    }
+    
+    Vector3 ValidateLightningBoltPosition(Vector3 position)
+    {
+        float nearestNightBlockDistance = float.MaxValue;
+        float nearestDayBlockDistance = float.MaxValue;
+        BoxBlock nearestNightBlock = null;
+        
+        BoxBlock[] allBlocks = FindObjectsByType<BoxBlock>(FindObjectsSortMode.None);
+        foreach (BoxBlock block in allBlocks)
+        {
+            float distance = Vector3.Distance(position, block.transform.position);
+            if (block.visibleDuringDay)
+            {
+                if (distance < nearestDayBlockDistance)
+                {
+                    nearestDayBlockDistance = distance;
+                }
+            }
+            else
+            {
+                if (distance < nearestNightBlockDistance)
+                {
+                    nearestNightBlockDistance = distance;
+                    nearestNightBlock = block;
+                }
+            }
+        }
+        
+        // Bolt must be near night block (within 2 blocks) and away from day blocks (at least 1.5 blocks)
+        if (nearestNightBlockDistance > 2f * blockSize && nearestNightBlock != null)
+        {
+            // Place bolt above nearest night block
+            return nearestNightBlock.transform.position + Vector3.up * 1.5f;
+        }
+        
+        if (nearestDayBlockDistance < 1.5f * blockSize && nearestNightBlock != null)
+        {
+            // Move bolt away from day blocks, towards night blocks
+            Vector3 direction = (nearestNightBlock.transform.position - position).normalized;
+            return position + direction * 1.5f * blockSize;
+        }
+        
+        return position;
     }
 
     void CreateMonster(Vector3 position, Monster.MonsterType monsterType = Monster.MonsterType.FlyingEye)

@@ -93,55 +93,31 @@ public class BoxBlock : MonoBehaviour
     }
     
     /// <summary>
-    /// Creates a default sprite for blocks - vertical stripe with chess pattern (like finish line)
+    /// Creates a default sprite for blocks - horizontal platform (wider than tall)
     /// </summary>
     Sprite CreateDefaultSprite()
     {
-        // Create a vertical stripe: tall and thin (vertical platform shape)
-        // Chess pattern like finish line
-        int width = 8;   // Thin (vertical stripe)
-        int height = 32; // Tall
+        // Create a horizontal platform: wider than tall (horizontal platform shape)
+        int width = 32;  // Wide
+        int height = 16; // Thin (half the width)
         Texture2D texture = new Texture2D(width, height);
         Color[] pixels = new Color[width * height];
         
-        Color stripeColor = dayColor;
-        Color borderColor = new Color(stripeColor.r * 0.7f, stripeColor.g * 0.7f, stripeColor.b * 0.7f);
-        Color altColor = Color.Lerp(stripeColor, Color.white, 0.1f);
-        
-        // Draw vertical stripe with chess pattern
-        for (int y = 0; y < height; y++)
+        // Use box color
+        Color blockColor = dayColor;
+        for (int i = 0; i < pixels.Length; i++)
         {
-            for (int x = 0; x < width; x++)
-            {
-                int index = y * width + x;
-                
-                // Border
-                if (y == 0 || y == height - 1 || x == 0 || x == width - 1)
-                {
-                    pixels[index] = borderColor;
-                }
-                else
-                {
-                    // Chess pattern (checkered)
-                    if ((x + y) % 4 < 2)
-                    {
-                        pixels[index] = stripeColor;
-                    }
-                    else
-                    {
-                        pixels[index] = altColor;
-                    }
-                }
-            }
+            pixels[i] = blockColor;
         }
-        
         texture.SetPixels(pixels);
         texture.Apply();
-        texture.filterMode = FilterMode.Point; // Pixel art style
+        
+        // Set texture filter mode to prevent gaps between sprites
+        texture.filterMode = FilterMode.Bilinear;
         texture.wrapMode = TextureWrapMode.Clamp;
         
         // Create sprite from texture (1 unit = 32 pixels, so pixelsPerUnit = 32)
-        // Vertical stripe: width = 0.25 units, height = 1 unit
+        // Horizontal platform: width = 1 unit, height = 0.5 units
         return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 32f);
     }
 

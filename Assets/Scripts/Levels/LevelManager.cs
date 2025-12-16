@@ -212,6 +212,9 @@ public class LevelManager : MonoBehaviour
             return;
         }
         
+        Debug.Log($"LevelManager: Loading level {levelNumber}");
+        
+        // Set current level FIRST before disabling generators
         currentLevel = levelNumber;
         
         // Disable all generators

@@ -137,27 +137,27 @@ public class FirstLevelGenerator : MonoBehaviour
             CreateFloorBlock(new Vector3(i * blockSize, 0f, 0f), FloorBlock.FloorType.Grass);
         }
         
-        // Platform 1: Small platform at x=8, height 0.5 blocks (lowered for reachability)
-        CreateBoxBlock(new Vector3(8f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(8.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        // Platform 1: Small platform at x=8, height 1.5 blocks (above ground)
+        CreateBoxBlock(new Vector3(8f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(8.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
-        // Platform 2: Small platform at x=12, height 0.5 blocks (lowered for reachability)
-        CreateBoxBlock(new Vector3(12f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(12.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        // Platform 2: Small platform at x=12, height 1.5 blocks (above ground)
+        CreateBoxBlock(new Vector3(12f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
-        // Platform 3: Small platform at x=16, height 0.5 blocks (lowered for reachability, near finish)
-        CreateBoxBlock(new Vector3(16f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(16.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        // Platform 3: Small platform at x=16, height 1.5 blocks (above ground, near finish)
+        CreateBoxBlock(new Vector3(16f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(16.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Place 1 monster on ground at x=12 (simple tutorial - shows player can die)
         CreateMonster(new Vector3(12.25f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
         
         // Place 2 lightning bolts (above platforms, reachable):
         // Bolt 1: Above platform 1
-        CreateLightningBolt(new Vector3(8.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(8.25f * blockSize, 1.5f + 1.5f, 0f));
         
         // Bolt 2: Above platform 3 (near finish line)
-        CreateLightningBolt(new Vector3(16.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(16.25f * blockSize, 1.5f + 1.5f, 0f));
         
         // Place finish line at the end (after 20 blocks)
         PlaceFinishLine();
@@ -455,13 +455,25 @@ public class FirstLevelGenerator : MonoBehaviour
             cameraFollow.minY = -2f;
             cameraFollow.maxY = 10f;
             
-            // Set initial camera position to player start position (centered on player)
+            // Set initial camera position so player is exactly one block away from left edge
+            // Player spawns at x=2, we want left edge at x=0, so player is 2 blocks from left edge
+            // But user wants player to be 1 block from left edge, so left edge should be at x=1
+            // Camera center = left edge + cameraHalfWidth = 1 + cameraHalfWidth
             float playerStartX = 2f * blockSize; // Player spawns at x=2
-            float initialCameraX = playerStartX;
+            float desiredLeftEdge = 0f * blockSize; // Level starts at x=0
+            float playerOffsetFromLeft = 1f * blockSize; // Player should be 1 block from left edge
+            float initialCameraX = desiredLeftEdge + playerOffsetFromLeft + cameraHalfWidth;
+            
             if (playerInstance != null)
             {
-                // Start camera centered on player
-                initialCameraX = playerInstance.transform.position.x;
+                // Ensure camera is positioned correctly relative to player
+                // Player at x=2, left edge should be at x=0, so camera center = 0 + cameraHalfWidth
+                // But we want player 1 block from left, so left edge = playerX - 1 = 2 - 1 = 1
+                // Camera center = 1 + cameraHalfWidth
+                float playerX = playerInstance.transform.position.x;
+                float leftEdgeX = playerX - playerOffsetFromLeft; // Left edge is 1 block before player
+                initialCameraX = leftEdgeX + cameraHalfWidth; // Camera center = left edge + half width
+                
                 // Clamp to bounds to ensure full floor is visible
                 initialCameraX = Mathf.Clamp(
                     initialCameraX,
@@ -720,7 +732,6 @@ public class FirstLevelGenerator : MonoBehaviour
         
         // No right boundary wall - player can pass finish line and will be stopped by finish line logic
         
-        Debug.Log($"Created boundary wall: Left at x={levelStartX}");
     }
 
     /// <summary>
@@ -1478,9 +1489,12 @@ public class FirstLevelGenerator : MonoBehaviour
 
     void CreateLightningBolt(Vector3 position)
     {
+        // Ensure lightning bolt is near night blocks and away from day blocks
+        Vector3 validatedPosition = ValidateLightningBoltPosition(position);
+        
         if (lightningBoltPrefab != null)
         {
-            GameObject bolt = Instantiate(lightningBoltPrefab, position, Quaternion.identity);
+            GameObject bolt = Instantiate(lightningBoltPrefab, validatedPosition, Quaternion.identity);
             bolt.transform.SetParent(itemsParent);
             // Scale lightning bolt to 50% of its original size
             bolt.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
@@ -1488,7 +1502,7 @@ public class FirstLevelGenerator : MonoBehaviour
         else
         {
             GameObject bolt = new GameObject("LightningBolt");
-            bolt.transform.position = position;
+            bolt.transform.position = validatedPosition;
             bolt.transform.SetParent(itemsParent);
             
             // Scale lightning bolt to 50% of its original size
@@ -1496,6 +1510,50 @@ public class FirstLevelGenerator : MonoBehaviour
             
             LightningBolt lightningBolt = bolt.AddComponent<LightningBolt>();
         }
+    }
+    
+    Vector3 ValidateLightningBoltPosition(Vector3 position)
+    {
+        float nearestNightBlockDistance = float.MaxValue;
+        float nearestDayBlockDistance = float.MaxValue;
+        BoxBlock nearestNightBlock = null;
+        
+        BoxBlock[] allBlocks = FindObjectsByType<BoxBlock>(FindObjectsSortMode.None);
+        foreach (BoxBlock block in allBlocks)
+        {
+            float distance = Vector3.Distance(position, block.transform.position);
+            if (block.visibleDuringDay)
+            {
+                if (distance < nearestDayBlockDistance)
+                {
+                    nearestDayBlockDistance = distance;
+                }
+            }
+            else
+            {
+                if (distance < nearestNightBlockDistance)
+                {
+                    nearestNightBlockDistance = distance;
+                    nearestNightBlock = block;
+                }
+            }
+        }
+        
+        // Bolt must be near night block (within 2 blocks) and away from day blocks (at least 1.5 blocks)
+        if (nearestNightBlockDistance > 2f * blockSize && nearestNightBlock != null)
+        {
+            // Place bolt above nearest night block
+            return nearestNightBlock.transform.position + Vector3.up * 1.5f;
+        }
+        
+        if (nearestDayBlockDistance < 1.5f * blockSize && nearestNightBlock != null)
+        {
+            // Move bolt away from day blocks, towards night blocks
+            Vector3 direction = (nearestNightBlock.transform.position - position).normalized;
+            return position + direction * 1.5f * blockSize;
+        }
+        
+        return position;
     }
     
     void CreateMonster(Vector3 position, Monster.MonsterType monsterType = Monster.MonsterType.FlyingEye)
@@ -1800,7 +1858,6 @@ public class FirstLevelGenerator : MonoBehaviour
                 // Transform scale (0.6x) affects the visual size, but collider size is in world units
                 col.size = spriteSize; // Exact match to sprite bounds
                 
-                Debug.Log($"[FirstLevelGenerator] Player collider updated - Size: {col.size} | Sprite bounds: {spriteSize} | Transform scale: {playerObj.transform.localScale} | Old size: {oldSize}");
                 
                 // Check actual bounds after setting
                 Bounds colliderBounds = col.bounds;
@@ -1808,14 +1865,7 @@ public class FirstLevelGenerator : MonoBehaviour
                 float diffX = Mathf.Abs(colliderBounds.size.x - spriteBounds.size.x);
                 float diffY = Mathf.Abs(colliderBounds.size.y - spriteBounds.size.y);
                 
-                if (diffX > 0.01f || diffY > 0.01f)
-                {
-                    Debug.LogWarning($"[FirstLevelGenerator] Player SIZE MISMATCH! Collider bounds: {colliderBounds.size} vs Sprite bounds: {spriteBounds.size} (diff: {diffX:F4}, {diffY:F4})");
-                }
-                else
-                {
-                    Debug.Log($"[FirstLevelGenerator] Player collider matches sprite bounds ✓");
-                }
+                // Validation removed - no debug logs for bounds
             }
         }
     }

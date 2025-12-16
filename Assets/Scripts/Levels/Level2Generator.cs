@@ -93,24 +93,24 @@ public class Level2Generator : MonoBehaviour
             CreateFloorBlock(new Vector3(i * blockSize, 0f, 0f), FloorBlock.FloorType.Grass);
         }
         
-        // Platform 1: Small platform at x=6, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(6f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(6.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        // Platform 1: Small platform at x=6, height 1.5 blocks (above ground)
+        CreateBoxBlock(new Vector3(6f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(6.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
-        // Platform 2: Small platform at x=12, height 0.5 blocks (lowered)
-        CreateBoxBlock(new Vector3(12f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(12.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        // Platform 2: Small platform at x=12, height 1.5 blocks (above ground)
+        CreateBoxBlock(new Vector3(12f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
-        // Platform 3: Small platform at x=18, height 0.5 blocks (lowered, near finish)
-        CreateBoxBlock(new Vector3(18f * blockSize, 0.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(18.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        // Platform 3: Small platform at x=18, height 1.5 blocks (above ground, near finish)
+        CreateBoxBlock(new Vector3(18f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(18.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         
         // Place 1 monster on ground
         CreateMonster(new Vector3(10f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
         
-        // Place 2 lightning bolts (Level 1-2: 2 bolts)
-        CreateLightningBolt(new Vector3(6.25f * blockSize, 0.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(18.25f * blockSize, 0.5f + 1.5f, 0f));
+        // Place 2 lightning bolts (Level 1-2: 2 bolts) - above platforms
+        CreateLightningBolt(new Vector3(6.25f * blockSize, 1.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(18.25f * blockSize, 1.5f + 1.5f, 0f));
         
         // Place finish line at the end
         CreateFinishLine(new Vector3(levelLength * blockSize, 1.5f, 0f));
@@ -207,7 +207,23 @@ public class Level2Generator : MonoBehaviour
         cameraFollow.minY = -2f;
         cameraFollow.maxY = 10f;
         
-        mainCamera.transform.position = new Vector3(1f, 2f, -10f);
+        // Position camera so player is exactly one block away from left edge
+        // Player spawns at x=2, we want left edge at x=1 (so player is 1 block from left)
+        // Camera center = left edge + cameraHalfWidth = 1 + cameraHalfWidth
+        float playerStartX = 2f * blockSize;
+        float playerOffsetFromLeft = 1f * blockSize; // Player should be 1 block from left edge
+        float leftEdgeX = playerStartX - playerOffsetFromLeft; // Left edge = 2 - 1 = 1
+        float initialCameraX = leftEdgeX + cameraHalfWidth;
+        
+        if (playerInstance != null)
+        {
+            float playerX = playerInstance.transform.position.x;
+            leftEdgeX = playerX - playerOffsetFromLeft;
+            initialCameraX = leftEdgeX + cameraHalfWidth;
+            initialCameraX = Mathf.Clamp(initialCameraX, cameraFollow.minX, cameraFollow.maxX);
+        }
+        
+        mainCamera.transform.position = new Vector3(initialCameraX, playerInstance != null ? playerInstance.transform.position.y : 2f, -10f);
     }
 
     void EnsureGameManagerExists()
@@ -361,6 +377,73 @@ public class Level2Generator : MonoBehaviour
 
     GameObject CreateLightningBolt(Vector3 position)
     {
+        // Ensure lightning bolt is near night blocks and away from day blocks
+        // Find nearest night block
+        float nearestNightBlockDistance = float.MaxValue;
+        float nearestDayBlockDistance = float.MaxValue;
+        float checkRadius = 3f * blockSize; // Check within 3 blocks
+        
+        BoxBlock[] allBlocks = FindObjectsByType<BoxBlock>(FindObjectsSortMode.None);
+        foreach (BoxBlock block in allBlocks)
+        {
+            float distance = Vector3.Distance(position, block.transform.position);
+            if (block.visibleDuringDay)
+            {
+                // Day block - should be far away
+                if (distance < nearestDayBlockDistance)
+                {
+                    nearestDayBlockDistance = distance;
+                }
+            }
+            else
+            {
+                // Night block - should be nearby
+                if (distance < nearestNightBlockDistance)
+                {
+                    nearestNightBlockDistance = distance;
+                }
+            }
+        }
+        
+        // Validate: bolt should be near night block (within 2 blocks) and away from day blocks (at least 1.5 blocks)
+        if (nearestNightBlockDistance > 2f * blockSize)
+        {
+            Debug.LogWarning($"Lightning bolt at {position} is too far from night blocks (distance: {nearestNightBlockDistance}). Adjusting position.");
+            // Try to find a better position near a night block
+            foreach (BoxBlock block in allBlocks)
+            {
+                if (!block.visibleDuringDay)
+                {
+                    // Found a night block, place bolt above it
+                    Vector3 newPosition = block.transform.position + Vector3.up * 1.5f;
+                    position = newPosition;
+                    break;
+                }
+            }
+        }
+        
+        if (nearestDayBlockDistance < 1.5f * blockSize)
+        {
+            Debug.LogWarning($"Lightning bolt at {position} is too close to day blocks (distance: {nearestDayBlockDistance}). Adjusting position.");
+            // Move bolt away from day blocks, towards night blocks
+            Vector3 awayFromDay = Vector3.zero;
+            int nightBlockCount = 0;
+            foreach (BoxBlock block in allBlocks)
+            {
+                if (!block.visibleDuringDay)
+                {
+                    Vector3 direction = (block.transform.position - position).normalized;
+                    awayFromDay += direction;
+                    nightBlockCount++;
+                }
+            }
+            if (nightBlockCount > 0)
+            {
+                awayFromDay /= nightBlockCount;
+                position += awayFromDay * 1.5f * blockSize;
+            }
+        }
+        
         GameObject bolt;
         if (lightningBoltPrefab != null)
         {
