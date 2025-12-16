@@ -15,7 +15,9 @@ public class Monster : MonoBehaviour
     public enum MonsterType
     {
         FlyingEye,
-        Mushroom
+        Mushroom,
+        Goblin,
+        Skeleton
     }
     
     [Header("Monster Settings")]
@@ -78,17 +80,17 @@ public class Monster : MonoBehaviour
         // Setup collider as trigger
         monsterCollider.isTrigger = true;
         
-        // CRITICAL: Size collider to match sprite bounds EXACTLY (not static size)
-        // This ensures the collider matches the actual sprite dimensions
+        // CRITICAL: Size collider to match sprite bounds, but make it much smaller for tighter hitbox
+        // Use 40% of sprite size to ensure player only dies when actually touching the visual sprite
         if (spriteRenderer.sprite != null)
         {
             Vector2 spriteSize = spriteRenderer.sprite.bounds.size;
-            monsterCollider.size = spriteSize; // Exact match to sprite size - no static values
+            monsterCollider.size = spriteSize * 0.4f; // 40% of sprite size for very tight hitbox
         }
         else
         {
             // Only use size parameter as temporary fallback if no sprite loaded yet
-            monsterCollider.size = new Vector2(size, size);
+            monsterCollider.size = new Vector2(size * 0.4f, size * 0.4f);
         }
         
         spriteRenderer.color = monsterColor;
@@ -114,6 +116,14 @@ public class Monster : MonoBehaviour
             case MonsterType.Mushroom:
                 spriteName = "Idle";
                 folderName = "Mushroom";
+                break;
+            case MonsterType.Goblin:
+                spriteName = "Idle";
+                folderName = "Goblin";
+                break;
+            case MonsterType.Skeleton:
+                spriteName = "Idle";
+                folderName = "Skeleton";
                 break;
         }
         
@@ -238,26 +248,15 @@ public class Monster : MonoBehaviour
             gameManager.OnTimeOfDayChanged += SetTimeOfDay;
         }
         
-        // CRITICAL: Ensure collider size matches sprite EXACTLY after sprite is definitely loaded
-        // This is called in Start() to ensure sprite is loaded and collider matches it perfectly
+        // CRITICAL: Ensure collider size matches sprite (40% scale) after sprite is definitely loaded
+        // This is called in Start() to ensure sprite is loaded and collider matches it
+        // Use 40% of sprite size for very tight hitbox - player only dies when actually touching visual sprite
         if (spriteRenderer.sprite != null && monsterCollider != null)
         {
             Vector2 spriteSize = spriteRenderer.sprite.bounds.size;
-            monsterCollider.size = spriteSize; // Exact match to sprite size - no static values
+            monsterCollider.size = spriteSize * 0.4f; // 40% of sprite size for very tight hitbox
             
-            Debug.Log($"[Monster] {monsterType} - Collider size set to match sprite: {monsterCollider.size} (sprite bounds: {spriteSize}, transform scale: {transform.localScale})");
-            
-            // Verify they match
-            float diffX = Mathf.Abs(monsterCollider.bounds.size.x - spriteRenderer.bounds.size.x);
-            float diffY = Mathf.Abs(monsterCollider.bounds.size.y - spriteRenderer.bounds.size.y);
-            if (diffX > 0.01f || diffY > 0.01f)
-            {
-                Debug.LogWarning($"[Monster] {monsterType} - SIZE MISMATCH! Collider bounds: {monsterCollider.bounds.size} vs Sprite bounds: {spriteRenderer.bounds.size} (diff: {diffX:F4}, {diffY:F4})");
-            }
-            else
-            {
-                Debug.Log($"[Monster] {monsterType} - Collider matches sprite bounds ✓");
-            }
+            Debug.Log($"[Monster] {monsterType} - Collider size set to 40% of sprite: {monsterCollider.size} (sprite bounds: {spriteSize}, transform scale: {transform.localScale})");
         }
         
         // Future: Initialize movement if canMove is enabled
@@ -317,17 +316,18 @@ public class Monster : MonoBehaviour
     
     void LateUpdate()
     {
-        // CRITICAL: Ensure collider matches sprite size exactly after sprite is loaded
+        // CRITICAL: Ensure collider matches sprite size (40% scale) after sprite is loaded
         // This runs after all updates to ensure sprite is set and collider matches it
-        // No static size values - always match the actual sprite
+        // Use 40% of sprite size for very tight hitbox - player only dies when actually touching visual sprite
         if (spriteRenderer != null && spriteRenderer.sprite != null && monsterCollider != null)
         {
             Vector2 spriteSize = spriteRenderer.sprite.bounds.size;
+            Vector2 targetColliderSize = spriteSize * 0.4f; // 40% of sprite size
             
             // Only update if sizes don't match (avoid constant updates)
-            if (Vector2.Distance(monsterCollider.size, spriteSize) > 0.001f)
+            if (Vector2.Distance(monsterCollider.size, targetColliderSize) > 0.001f)
             {
-                monsterCollider.size = spriteSize; // Exact match to sprite size - no static values
+                monsterCollider.size = targetColliderSize; // 40% of sprite size for very tight hitbox
             }
         }
     }

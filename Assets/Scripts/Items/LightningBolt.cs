@@ -239,14 +239,9 @@ public class LightningBolt : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        // Check if player collected it (only from trigger collider)
-        if (isCollected) return;
-        
-        // Only collect if it's the player (not blocks)
-        if (other.CompareTag("Player") || other.GetComponent<PlayerController>() != null)
-        {
-            CollectBolt();
-        }
+        // Collection is handled by LightningBoltCollector component
+        // This prevents double collection
+        // Do nothing here - let LightningBoltCollector handle it
     }
     
     void OnCollisionEnter2D(Collision2D collision)
@@ -265,6 +260,7 @@ public class LightningBolt : MonoBehaviour
         if (gameManager != null)
         {
             gameManager.CollectLightningBolt(boltValue);
+            Debug.Log($"Lightning bolt collected! Value: {boltValue}, Total: {gameManager.totalBoltsCollected}");
         }
         
         // Play collection effect
@@ -279,12 +275,59 @@ public class LightningBolt : MonoBehaviour
             AudioSource.PlayClipAtPoint(collectionSound, transform.position);
         }
         
-        // Disable visuals and collider
+        // Disable visuals and collider (but don't destroy - needed for reset)
         spriteRenderer.enabled = false;
         circleCollider.enabled = false;
         
-        // Destroy after a short delay to allow effects to play
-        Destroy(gameObject, 0.5f);
+        // Disable the trigger collider too
+        LightningBoltCollector collector = GetComponentInChildren<LightningBoltCollector>();
+        if (collector != null)
+        {
+            Collider2D triggerCollider = collector.GetComponent<Collider2D>();
+            if (triggerCollider != null)
+            {
+                triggerCollider.enabled = false;
+            }
+        }
+        
+        // Don't destroy - just disable. This allows reset to work properly
+        gameObject.SetActive(false);
+    }
+    
+    /// <summary>
+    /// Reset the bolt to uncollected state (called when player respawns)
+    /// </summary>
+    public void ResetBolt()
+    {
+        if (!isCollected && gameObject.activeSelf) return; // Already reset and active
+        
+        isCollected = false;
+        
+        // Re-activate the game object
+        gameObject.SetActive(true);
+        
+        // Re-enable visuals and collider
+        spriteRenderer.enabled = true;
+        circleCollider.enabled = true;
+        
+        // Re-enable the trigger collider
+        LightningBoltCollector collector = GetComponentInChildren<LightningBoltCollector>();
+        if (collector != null)
+        {
+            collector.ResetCollector(); // Reset collector state
+            Collider2D triggerCollider = collector.GetComponent<Collider2D>();
+            if (triggerCollider != null)
+            {
+                triggerCollider.enabled = true;
+            }
+        }
+        
+        // Reset position
+        transform.position = startPosition;
+        originalPosition = startPosition;
+        floatTimer = 0f;
+        isShaking = false;
+        shakeTimer = 0f;
     }
 
     void OnValidate()

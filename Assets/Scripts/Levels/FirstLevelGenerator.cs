@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -36,6 +37,15 @@ public class FirstLevelGenerator : MonoBehaviour
 
     void Start()
     {
+        // Check if LevelManager wants to control generation
+        LevelManager levelManager = FindFirstObjectByType<LevelManager>();
+        if (levelManager != null && levelManager.currentLevel != 1)
+        {
+            // LevelManager will handle generation, don't auto-generate
+            gameObject.SetActive(false);
+            return;
+        }
+        
         if (generateOnStart)
         {
             GenerateFirstLevel();
@@ -43,7 +53,8 @@ public class FirstLevelGenerator : MonoBehaviour
     }
 
     /// <summary>
-    /// Generate the first level - a tutorial/intro level for new players
+    /// Generate the first level - a simple fixed tutorial level for new players
+    /// Fixed layout: ~30 blocks, 2 lightning bolts, 1 monster
     /// </summary>
     public void GenerateFirstLevel()
     {
@@ -68,33 +79,14 @@ public class FirstLevelGenerator : MonoBehaviour
         // Create invisible boundary walls to prevent player from leaving level
         CreateBoundaryWalls();
 
-        // Generate ground floor (solid foundation)
-        CreateGroundFloor();
+        // Create simple fixed tutorial level
+        CreateFixedTutorialLevel();
 
-        // Generate platforms and obstacles (vertical level design)
-        CreatePlatforms();
+        // Setup tutorial background with key descriptions
+        SetupTutorialBackground();
 
-        // Place lightning bolts (collectibles)
-        PlaceLightningBolts();
-
-        // Place monsters (death points) in the middle of the level
-        PlaceMonsters();
-        
-        // Place finish line at the end of the level
-        PlaceFinishLine();
-
-        // Create player at start position (on top of first grass block, safe from falling)
-        // Calculate proper spawn position based on ground height
-        float playerStartX = 1f * blockSize;
-        float startY = -0.5f;
-        float endY = 0.5f;
-        float leftmostX = -5f * blockSize;
-        float fillUntilX = playerStartX + (2f * blockSize);
-        float progress = Mathf.Max(0f, (playerStartX - leftmostX) / (fillUntilX - leftmostX + 1f));
-        float baseY = startY + (progress * (endY - startY) * 0.1f); // Match ground calculation
-        float grassHeight = 0.1f; // Approximate grass height
-        float playerSpawnY = (baseY + grassHeight) * blockSize + 0.5f; // On top of grass + 0.5 units
-        CreatePlayer(new Vector3(playerStartX, playerSpawnY, 0f));
+        // Create player at start position (on ground, visible in camera)
+        CreatePlayer(new Vector3(2f * blockSize, 1f, 0f));
 
         // Setup camera to follow player (CameraFollow script will handle it)
         SetupCamera();
@@ -122,8 +114,130 @@ public class FirstLevelGenerator : MonoBehaviour
         
         // Refresh GameManager to find all new boxes and monsters
         RefreshGameManager();
+        
+        // Refresh lightning bolt counter AFTER bolts are created
+        LightningBoltCounter counter = FindFirstObjectByType<LightningBoltCounter>();
+        if (counter != null)
+        {
+            counter.RefreshTotalBolts();
+            counter.ResetToOriginalTotal();
+        }
 
-        Debug.Log("First Level generated successfully! Welcome to Lumen-Shift!");
+        Debug.Log("Tutorial Level generated successfully! Welcome to Lumen-Shift!");
+    }
+    
+    /// <summary>
+    /// Create a very simple fixed tutorial level with ~20 blocks, 2 lightning bolts, 1 monster
+    /// </summary>
+    void CreateFixedTutorialLevel()
+    {
+        // Ground floor: 20 blocks of grass (simpler)
+        for (int i = 0; i < 20; i++)
+        {
+            CreateFloorBlock(new Vector3(i * blockSize, 0f, 0f), FloorBlock.FloorType.Grass);
+        }
+        
+        // Platform 1: Small platform at x=8, height 2 blocks (for first bolt)
+        CreateBoxBlock(new Vector3(8f * blockSize, 2f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(8.5f * blockSize, 2f, 0f), visibleDuringDay: false);
+        
+        // Platform 2: Small platform at x=12, height 1.5 blocks (for monster)
+        CreateBoxBlock(new Vector3(12f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        
+        // Platform 3: Small platform at x=16, height 2 blocks (for second bolt, near finish)
+        CreateBoxBlock(new Vector3(16f * blockSize, 2f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(16.5f * blockSize, 2f, 0f), visibleDuringDay: false);
+        
+        // Place 1 monster on ground at x=12 (simple tutorial - shows player can die)
+        CreateMonster(new Vector3(12.25f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
+        
+        // Place 2 lightning bolts (above platforms, reachable):
+        // Bolt 1: Above platform 1
+        CreateLightningBolt(new Vector3(8.25f * blockSize, 2f + 1.5f, 0f));
+        
+        // Bolt 2: Above platform 3 (near finish line)
+        CreateLightningBolt(new Vector3(16.25f * blockSize, 2f + 1.5f, 0f));
+        
+        // Place finish line at the end (after 20 blocks)
+        PlaceFinishLine();
+    }
+    
+    /// <summary>
+    /// Setup tutorial background with key descriptions at the start of level
+    /// </summary>
+    void SetupTutorialBackground()
+    {
+        // Remove old background menu if it exists
+        GameObject oldBg = GameObject.Find("BackgroundMenuCanvas");
+        if (oldBg != null)
+        {
+            DestroyImmediate(oldBg);
+        }
+        
+        // Create tutorial background canvas
+        GameObject tutorialCanvasObj = new GameObject("TutorialBackground");
+        Canvas tutorialCanvas = tutorialCanvasObj.AddComponent<Canvas>();
+        tutorialCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        tutorialCanvas.sortingOrder = 5; // Above game but below UI
+        
+        // Create semi-transparent background panel
+        GameObject bgPanel = new GameObject("BackgroundPanel");
+        bgPanel.transform.SetParent(tutorialCanvasObj.transform, false);
+        RectTransform bgRect = bgPanel.AddComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.sizeDelta = Vector2.zero;
+        
+        Image bgImage = bgPanel.AddComponent<Image>();
+        bgImage.color = new Color(0f, 0f, 0f, 0.6f); // Semi-transparent black
+        
+        // Create tutorial content container
+        GameObject contentObj = new GameObject("TutorialContent");
+        contentObj.transform.SetParent(tutorialCanvasObj.transform, false);
+        RectTransform contentRect = contentObj.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0.5f, 0.5f);
+        contentRect.anchorMax = new Vector2(0.5f, 0.5f);
+        contentRect.pivot = new Vector2(0.5f, 0.5f);
+        contentRect.sizeDelta = new Vector2(600f, 400f);
+        contentRect.anchoredPosition = Vector2.zero;
+        
+        // Title
+        CreateTutorialText(contentObj.transform, "Controls", new Vector2(0f, 150f), 36, Color.yellow);
+        
+        // Key descriptions
+        CreateTutorialText(contentObj.transform, "A / ←  - Move Left", new Vector2(0f, 100f), 24, Color.white);
+        CreateTutorialText(contentObj.transform, "D / →  - Move Right", new Vector2(0f, 60f), 24, Color.white);
+        CreateTutorialText(contentObj.transform, "SPACE / ↑  - Jump", new Vector2(0f, 20f), 24, Color.white);
+        CreateTutorialText(contentObj.transform, "SHIFT  - Toggle Day/Night", new Vector2(0f, -20f), 24, Color.white);
+        CreateTutorialText(contentObj.transform, "R  - Respawn (when dead)", new Vector2(0f, -60f), 24, Color.white);
+        
+        // Add script to hide tutorial after a few seconds or on first input
+        TutorialBackground tutorialScript = tutorialCanvasObj.AddComponent<TutorialBackground>();
+    }
+    
+    /// <summary>
+    /// Helper to create tutorial text
+    /// </summary>
+    void CreateTutorialText(Transform parent, string text, Vector2 position, int fontSize, Color color)
+    {
+        GameObject textObj = new GameObject("TutorialText_" + text.Replace(" ", ""));
+        textObj.transform.SetParent(parent, false);
+        
+        RectTransform textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = new Vector2(0.5f, 0.5f);
+        textRect.anchorMax = new Vector2(0.5f, 0.5f);
+        textRect.pivot = new Vector2(0.5f, 0.5f);
+        textRect.sizeDelta = new Vector2(500f, 40f);
+        textRect.anchoredPosition = position;
+        
+        Text textComponent = textObj.AddComponent<Text>();
+        textComponent.text = text;
+        textComponent.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        textComponent.fontSize = fontSize;
+        textComponent.color = color;
+        textComponent.alignment = TextAnchor.MiddleCenter;
+        textComponent.fontStyle = FontStyle.Bold;
     }
     
     /// <summary>
@@ -274,8 +388,32 @@ public class FirstLevelGenerator : MonoBehaviour
     void SetupCamera()
     {
         Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            // Find any camera if Main Camera doesn't exist
+            mainCamera = FindFirstObjectByType<Camera>();
+        }
+        
+        if (mainCamera == null)
+        {
+            // Create Main Camera if it doesn't exist
+            GameObject cameraObj = new GameObject("Main Camera");
+            cameraObj.tag = "MainCamera";
+            mainCamera = cameraObj.AddComponent<Camera>();
+            mainCamera.orthographic = true;
+            mainCamera.orthographicSize = 5f;
+            mainCamera.transform.position = new Vector3(0f, 0f, -10f);
+        }
+        
         if (mainCamera != null)
         {
+            // Add CameraURPFix component for 2D setup (must be added first)
+            CameraURPFix cameraURPFix = mainCamera.GetComponent<CameraURPFix>();
+            if (cameraURPFix == null)
+            {
+                cameraURPFix = mainCamera.gameObject.AddComponent<CameraURPFix>();
+            }
+            
             // Add CameraFollow component if it doesn't exist
             CameraFollow cameraFollow = mainCamera.GetComponent<CameraFollow>();
             if (cameraFollow == null)
@@ -302,31 +440,28 @@ public class FirstLevelGenerator : MonoBehaviour
             cameraFollow.cameraSize = zoomedInSize;
             mainCamera.orthographicSize = zoomedInSize;
             
-            // Calculate camera bounds - level starts at player spawn (x=1) and ends at x=totalFloorBlocks + extra blocks
-            float playerStartX = 1f * blockSize; // Player spawns here - this is where level "starts" visually
-            int blocksPerOriginal = 10;
-            float subBlockSize = blockSize / blocksPerOriginal;
-            float levelEndX = (totalFloorBlocks * blockSize) + (blocksPerOriginal * subBlockSize);
+            // Calculate camera bounds - for fixed tutorial level: level goes from x=0 to x=30
+            float levelStartX = 0f; // Level starts at x=0
+            float levelEndX = 30f * blockSize; // Level ends at x=30
             float cameraHalfWidth = zoomedInSize * aspectRatio;
             
             // Set camera bounds to prevent showing empty space
-            // Left bound: camera center can't go below playerStartX (so left edge is at playerStartX - cameraHalfWidth)
-            // But we want to start at playerStartX, so minX should allow camera to center on playerStartX
+            // Left bound: camera center can't go below levelStartX + cameraHalfWidth (so left edge is at levelStartX)
             // Right bound: camera center can't go above levelEndX - cameraHalfWidth (so right edge is at levelEndX)
             cameraFollow.useBounds = true;
-            cameraFollow.minX = playerStartX; // Can't go left of player start position
-            cameraFollow.maxX = levelEndX - cameraHalfWidth; // Right edge of level
+            cameraFollow.minX = levelStartX + cameraHalfWidth; // Left edge of camera at level start
+            cameraFollow.maxX = levelEndX - cameraHalfWidth; // Right edge of camera at level end
             cameraFollow.minY = -2f;
             cameraFollow.maxY = 10f;
             
             // Set initial camera position to player start position (centered on player)
-            // Camera should center on player at start
+            float playerStartX = 1f * blockSize; // Player spawns at x=1
             float initialCameraX = playerStartX;
             if (playerInstance != null)
             {
                 // Start camera centered on player
                 initialCameraX = playerInstance.transform.position.x;
-                // Clamp to bounds (but should be fine since player starts at playerStartX)
+                // Clamp to bounds to ensure full floor is visible
                 initialCameraX = Mathf.Clamp(
                     initialCameraX,
                     cameraFollow.minX,
@@ -562,38 +697,36 @@ public class FirstLevelGenerator : MonoBehaviour
 
     /// <summary>
     /// Create invisible boundary walls at left and right edges of level
+    /// For fixed tutorial level: walls at x=0 and x=30
     /// </summary>
     void CreateBoundaryWalls()
     {
         float wallHeight = 20f; // Tall enough to prevent jumping over
         float wallThickness = 0.5f;
         
+        // For fixed tutorial level: level goes from x=0 to x=20
+        float levelStartX = 0f;
+        float levelEndX = 20f * blockSize;
+        
         // Left boundary wall (invisible, blocks player from going left)
         GameObject leftWall = new GameObject("LeftBoundary");
-        // Don't set tag if it doesn't exist - just use collider
-        leftWall.transform.position = new Vector3(-wallThickness * 0.5f, wallHeight * 0.5f, 0f);
+        leftWall.transform.position = new Vector3(levelStartX - wallThickness * 0.5f, wallHeight * 0.5f, 0f);
         leftWall.transform.SetParent(blocksParent);
         
         BoxCollider2D leftCollider = leftWall.AddComponent<BoxCollider2D>();
         leftCollider.size = new Vector2(wallThickness, wallHeight);
         leftCollider.isTrigger = false;
         
-        // Make it invisible (no sprite renderer) - it's just a collider
-        
         // Right boundary wall (invisible, blocks player from going right past level end)
-        // Account for extra blocks added at the end (blocksPerOriginal sub-blocks)
         GameObject rightWall = new GameObject("RightBoundary");
-        int blocksPerOriginal = 10;
-        float subBlockSize = blockSize / blocksPerOriginal;
-        float rightWallX = (totalFloorBlocks * blockSize) + (blocksPerOriginal * subBlockSize) + wallThickness * 0.5f;
-        rightWall.transform.position = new Vector3(rightWallX, wallHeight * 0.5f, 0f);
+        rightWall.transform.position = new Vector3(levelEndX + wallThickness * 0.5f, wallHeight * 0.5f, 0f);
         rightWall.transform.SetParent(blocksParent);
         
         BoxCollider2D rightCollider = rightWall.AddComponent<BoxCollider2D>();
         rightCollider.size = new Vector2(wallThickness, wallHeight);
         rightCollider.isTrigger = false;
         
-        Debug.Log("Created boundary walls at left and right edges");
+        Debug.Log($"Created boundary walls: Left at x={levelStartX}, Right at x={levelEndX}");
     }
 
     /// <summary>
@@ -1262,19 +1395,19 @@ public class FirstLevelGenerator : MonoBehaviour
     /// </summary>
     void PlaceFinishLine()
     {
-        // Calculate end position - at the rightmost edge of the level
-        // Account for extra blocks at the end
-        int blocksPerOriginal = 10;
-        float subBlockSize = blockSize / blocksPerOriginal;
-        float finishX = (totalFloorBlocks * blockSize) + (blocksPerOriginal * subBlockSize) - 2f; // 2 blocks before the end
-        
-        // Position finish line on the ground level (with incline)
-        float startY = -0.5f;
-        float endY = 0.5f;
-        float progress = 1f; // At the end
-        float finishY = (startY + (progress * (endY - startY))) * blockSize + 1.5f; // On top of ground
-        
-        CreateFinishLine(new Vector3(finishX, finishY, 0f));
+        // For fixed tutorial level: place finish line at the end (after 20 blocks)
+        float finishX = 20f * blockSize;
+        float finishY = 1.5f; // On ground level
+
+        FinishLine finishLine = FindFirstObjectByType<FinishLine>();
+        if (finishLine == null)
+        {
+            CreateFinishLine(new Vector3(finishX, finishY, 0f));
+        }
+        else
+        {
+            finishLine.transform.position = new Vector3(finishX, finishY, 0f);
+        }
     }
 
     void CreateFloorBlock(Vector3 position, FloorBlock.FloorType floorType = FloorBlock.FloorType.Grass)

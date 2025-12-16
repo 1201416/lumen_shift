@@ -3,14 +3,14 @@ using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
-/// Generates Level 4 - Maze Challenge
-/// Features complex maze-like paths with multiple routes
+/// Generates Level 5 - Final Challenge
+/// The ultimate test with extreme vertical challenges and precision
 /// </summary>
-public class Level4Generator : MonoBehaviour
+public class Level13Generator : MonoBehaviour
 {
     [Header("Level Settings")]
     public float blockSize = 1f;
-    public int totalFloorBlocks = 120;
+    public int totalFloorBlocks = 170; // Level 13: 170 blocks
     public int visibleBlocks = 16;
     
     [Header("Block Prefabs")]
@@ -33,7 +33,7 @@ public class Level4Generator : MonoBehaviour
     {
         // Check if LevelManager wants to control generation
         LevelManager levelManager = FindFirstObjectByType<LevelManager>();
-        if (levelManager != null && levelManager.currentLevel != 4)
+        if (levelManager != null && levelManager.currentLevel != 13)
         {
             // LevelManager will handle generation, don't auto-generate
             gameObject.SetActive(false);
@@ -42,11 +42,11 @@ public class Level4Generator : MonoBehaviour
         
         if (generateOnStart)
         {
-            GenerateLevel4();
+            GenerateLevel13();
         }
     }
 
-    public void GenerateLevel4()
+    public void GenerateLevel13()
     {
         ClearLevel();
 
@@ -89,10 +89,12 @@ public class Level4Generator : MonoBehaviour
         SetupLightningBoltCounter();
         SetupDeathScreen();
         SetupWinnerScreen();
+        SetupBlockManager();
+        SetupTimeOfDayController();
         SetupClouds();
         RefreshGameManager();
 
-        Debug.Log("Level 2 generated successfully!");
+        Debug.Log("Level 13 generated successfully!");
     }
 
     void CreatePlatforms()
@@ -100,120 +102,133 @@ public class Level4Generator : MonoBehaviour
         int densityMultiplier = 10;
         float subBlockSize = blockSize / densityMultiplier;
         
-        // DAY-ONLY BLOCKS: Scattered platforms creating maze-like gaps
-        // Day platform 1: Starting area
-        for (int i = 0; i < 3 * densityMultiplier; i++)
+        // DAY-ONLY BLOCKS: Extreme vertical challenges - very few platforms
+        // Day platform 1: Starting area (very small)
+        for (int i = 0; i < 2 * densityMultiplier; i++)
         {
             CreateBoxBlock(new Vector3((1f + i * subBlockSize) * blockSize, 1.0f, 0f), visibleDuringDay: true);
         }
         
-        // Day platform 2: Isolated platform
+        // Day platform 2: Very high isolated platform
         for (int i = 0; i < 1 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((15f + i * subBlockSize) * blockSize, 1.8f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((25f + i * subBlockSize) * blockSize, 4.5f, 0f), visibleDuringDay: true);
         }
         
-        // Day platform 3: Another isolated platform
+        // Day platform 3: Another high platform
         for (int i = 0; i < 1 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((35f + i * subBlockSize) * blockSize, 2.2f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((60f + i * subBlockSize) * blockSize, 5.0f, 0f), visibleDuringDay: true);
         }
         
-        // Day platform 4: High isolated platform
+        // Day platform 4: Near end
         for (int i = 0; i < 1 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((60f + i * subBlockSize) * blockSize, 3.0f, 0f), visibleDuringDay: true);
+            CreateBoxBlock(new Vector3((120f + i * subBlockSize) * blockSize, 1.2f, 0f), visibleDuringDay: true);
         }
         
-        // Day platform 5: Near end
-        for (int i = 0; i < 2 * densityMultiplier; i++)
-        {
-            CreateBoxBlock(new Vector3((100f + i * subBlockSize) * blockSize, 1.5f, 0f), visibleDuringDay: true);
-        }
-        
-        // NIGHT-ONLY BLOCKS: Complex maze-like path with multiple routes
+        // NIGHT-ONLY BLOCKS: Extreme vertical path - ultimate challenge
         // Night path 1: Starting path
-        for (int i = 0; i < 5 * densityMultiplier; i++)
+        for (int i = 0; i < 4 * densityMultiplier; i++)
         {
             CreateBoxBlock(new Vector3((1f + i * subBlockSize) * blockSize, 1.0f, 0f), visibleDuringDay: false);
         }
         
-        // Night branch 1: Lower path
-        for (int i = 0; i < 8 * densityMultiplier; i++)
+        // Night tower 1: Extreme vertical climb
+        for (int i = 0; i < 12; i++)
         {
-            float x = 6f + i * subBlockSize;
-            float y = 1.0f + (i * 0.05f);
-            CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
+            for (int j = 0; j < 2 * densityMultiplier; j++)
+            {
+                CreateBoxBlock(new Vector3((5f + j * subBlockSize) * blockSize, 1.0f + (i * 0.4f), 0f), visibleDuringDay: false);
+            }
         }
         
-        // Night branch 2: Upper path (alternative route)
+        // Night platform 1: High landing
+        for (int i = 0; i < 2 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((7f + i * subBlockSize) * blockSize, 5.8f, 0f), visibleDuringDay: false);
+        }
+        
+        // Night bridge 1: Narrow bridge across gap
         for (int i = 0; i < 6 * densityMultiplier; i++)
         {
-            float x = 6f + i * subBlockSize;
-            float y = 1.5f + (i * 0.08f);
+            float x = 9f + i * subBlockSize;
+            float y = 5.8f - (i * 0.05f);
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        // Night platform 1: Junction point
+        // Night tower 2: Another extreme climb
+        for (int i = 0; i < 10; i++)
+        {
+            for (int j = 0; j < 2 * densityMultiplier; j++)
+            {
+                CreateBoxBlock(new Vector3((15f + j * subBlockSize) * blockSize, 5.5f + (i * 0.45f), 0f), visibleDuringDay: false);
+            }
+        }
+        
+        // Night platform 2: Very high checkpoint
         for (int i = 0; i < 3 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((14f + i * subBlockSize) * blockSize, 1.4f, 0f), visibleDuringDay: false);
+            CreateBoxBlock(new Vector3((17f + i * subBlockSize) * blockSize, 10.0f, 0f), visibleDuringDay: false);
         }
         
-        // Night maze section 1: Zigzag path
-        for (int i = 0; i < 10 * densityMultiplier; i++)
-        {
-            float x = 17f + i * subBlockSize;
-            float y = 1.4f + Mathf.Sin(i * 0.3f) * 0.4f;
-            CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
-        }
-        
-        // Night platform 2: Mid-maze checkpoint
-        for (int i = 0; i < 4 * densityMultiplier; i++)
-        {
-            CreateBoxBlock(new Vector3((27f + i * subBlockSize) * blockSize, 1.8f, 0f), visibleDuringDay: false);
-        }
-        
-        // Night maze section 2: Complex path with turns
+        // Night bridge 2: Long high bridge
         for (int i = 0; i < 12 * densityMultiplier; i++)
         {
-            float x = 31f + i * subBlockSize;
-            float y = 1.8f + Mathf.Sin(i * 0.2f) * 0.5f + (i * 0.03f);
+            float x = 20f + i * subBlockSize;
+            float y = 10.0f - (i * 0.03f);
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        // Night platform 3: High checkpoint
-        for (int i = 0; i < 3 * densityMultiplier; i++)
-        {
-            CreateBoxBlock(new Vector3((43f + i * subBlockSize) * blockSize, 2.6f, 0f), visibleDuringDay: false);
-        }
-        
-        // Night maze section 3: Descending maze
+        // Night staircase 1: Steep descent
         for (int i = 0; i < 15 * densityMultiplier; i++)
         {
-            float x = 46f + i * subBlockSize;
-            float y = 2.6f - (i * 0.04f) + Mathf.Sin(i * 0.25f) * 0.3f;
+            float x = 32f + i * subBlockSize;
+            float y = 9.64f - (i * 0.12f);
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
-        // Night platform 4: Lower checkpoint
-        for (int i = 0; i < 4 * densityMultiplier; i++)
+        // Night platform 3: Mid-level checkpoint
+        for (int i = 0; i < 2 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((61f + i * subBlockSize) * blockSize, 2.0f, 0f), visibleDuringDay: false);
+            CreateBoxBlock(new Vector3((47f + i * subBlockSize) * blockSize, 7.84f, 0f), visibleDuringDay: false);
         }
         
-        // Night maze section 4: Final complex path
+        // Night tower 3: Third extreme climb
+        for (int i = 0; i < 8; i++)
+        {
+            for (int j = 0; j < 2 * densityMultiplier; j++)
+            {
+                CreateBoxBlock(new Vector3((49f + j * subBlockSize) * blockSize, 7.84f + (i * 0.5f), 0f), visibleDuringDay: false);
+            }
+        }
+        
+        // Night platform 4: Another high checkpoint
+        for (int i = 0; i < 3 * densityMultiplier; i++)
+        {
+            CreateBoxBlock(new Vector3((51f + i * subBlockSize) * blockSize, 11.84f, 0f), visibleDuringDay: false);
+        }
+        
+        // Night bridge 3: Very long bridge
         for (int i = 0; i < 20 * densityMultiplier; i++)
         {
-            float x = 65f + i * subBlockSize;
-            float y = 2.0f + Mathf.Sin(i * 0.15f) * 0.4f - (i * 0.015f);
+            float x = 54f + i * subBlockSize;
+            float y = 11.84f - (i * 0.025f);
+            CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
+        }
+        
+        // Night staircase 2: Final descent
+        for (int i = 0; i < 25 * densityMultiplier; i++)
+        {
+            float x = 74f + i * subBlockSize;
+            float y = 11.34f - (i * 0.08f);
             CreateBoxBlock(new Vector3(x * blockSize, y, 0f), visibleDuringDay: false);
         }
         
         // Night platform 5: Final landing
-        for (int i = 0; i < 25 * densityMultiplier; i++)
+        for (int i = 0; i < 30 * densityMultiplier; i++)
         {
-            CreateBoxBlock(new Vector3((85f + i * subBlockSize) * blockSize, 1.7f, 0f), visibleDuringDay: false);
+            CreateBoxBlock(new Vector3((99f + i * subBlockSize) * blockSize, 9.34f, 0f), visibleDuringDay: false);
         }
     }
 
@@ -437,7 +452,7 @@ public class Level4Generator : MonoBehaviour
             return;
         }
         
-        int boltsToPlace = 12;
+        int boltsToPlace = 9; // Level 13: 9 lightning bolts
         int placed = 0;
         int attempts = 0;
         int maxAttempts = 300;
@@ -451,14 +466,19 @@ public class Level4Generator : MonoBehaviour
         {
             attempts++;
             
-            // Choose random platform (night block or grass/chão)
-            int randomIndex = Random.Range(0, allPlatforms.Count);
-            Vector3 platformPos = allPlatforms[randomIndex];
+            // FIXED: Use deterministic positions instead of random
+            // Process platforms in order and place bolts at fixed offsets
+            int platformIndex = attempts % allPlatforms.Count;
+            Vector3 platformPos = allPlatforms[platformIndex];
             
-            // Place bolt close to platform/chão (lower height for easier reach)
+            // Place bolt at fixed offset from platform (deterministic)
             Vector3 candidatePos = platformPos;
-            candidatePos.y += Random.Range(0.8f, 1.5f); // Closer to ground
-            candidatePos.x += Random.Range(-0.8f, 0.8f);
+            // Use fixed height based on platform index (deterministic pattern)
+            float heightOffset = 0.8f + ((platformIndex % 4) * 0.2f); // Cycles through 0.8, 1.0, 1.2, 1.4
+            candidatePos.y += heightOffset;
+            // Use fixed horizontal offset based on platform index (deterministic)
+            float xOffset = ((platformIndex % 3) - 1) * 0.5f; // Cycles through -0.5, 0, 0.5
+            candidatePos.x += xOffset;
             
             // Ensure it's near a platform/chão
             float minDistToPlatform = float.MaxValue;
@@ -474,6 +494,33 @@ public class Level4Generator : MonoBehaviour
             // Must be within 2 blocks of a platform
             if (minDistToPlatform > 2f * blockSize) continue;
             
+            // CRITICAL: Ensure bolt is reachable during night
+            // Check distance to nearest night block
+            float minDistToNight = float.MaxValue;
+            foreach (Vector3 nightPos in nightBlockPositions)
+            {
+                float dist = Vector3.Distance(candidatePos, nightPos);
+                if (dist < minDistToNight)
+                {
+                    minDistToNight = dist;
+                }
+            }
+            
+            // Check distance to nearest grass block (chão is always reachable)
+            float minDistToGrass = float.MaxValue;
+            foreach (Vector3 grassPos in grassBlockPositions)
+            {
+                float dist = Vector3.Distance(candidatePos, grassPos);
+                if (dist < minDistToGrass)
+                {
+                    minDistToGrass = dist;
+                }
+            }
+            
+            // Must be within reachable distance of night block (2 blocks) OR grass/chão (2.5 blocks)
+            bool reachableAtNight = (minDistToNight <= 2f * blockSize) || (minDistToGrass <= 2.5f * blockSize);
+            if (!reachableAtNight) continue;
+            
             bool tooCloseToDayBlock = false;
             foreach (Vector3 dayPos in dayBlockPositions)
             {
@@ -486,11 +533,16 @@ public class Level4Generator : MonoBehaviour
             
             if (tooCloseToDayBlock) continue;
             
+            // CRITICAL: Check distance to other bolts - must be at least one screen width apart
             bool tooCloseToOtherBolt = false;
+            float cameraScreenWidth = GetCameraScreenWidth();
+            float minDistanceBetweenBolts = cameraScreenWidth * 1.1f; // At least 1 screen width + 10% buffer
+            
             LightningBoltCollector[] existingBolts = FindObjectsByType<LightningBoltCollector>(FindObjectsSortMode.None);
             foreach (LightningBoltCollector bolt in existingBolts)
             {
-                if (Vector3.Distance(candidatePos, bolt.transform.position) < 3f)
+                float dist = Vector3.Distance(candidatePos, bolt.transform.position);
+                if (dist < minDistanceBetweenBolts)
                 {
                     tooCloseToOtherBolt = true;
                     break;
@@ -529,6 +581,28 @@ public class Level4Generator : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Get the camera screen width in world units
+    /// This ensures lightning bolts are spaced at least one screen width apart
+    /// </summary>
+    float GetCameraScreenWidth()
+    {
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
+        {
+            float camAspectRatio = mainCamera.aspect;
+            float orthographicSize = mainCamera.orthographicSize;
+            return 2f * orthographicSize * camAspectRatio;
+        }
+        
+        // Fallback: calculate from camera setup
+        float fallbackAspectRatio = 16f / 9f;
+        float desiredHalfWidth = visibleBlocks * 0.5f;
+        float calculatedSize = desiredHalfWidth / fallbackAspectRatio;
+        float zoomedInSize = calculatedSize * 0.333f;
+        return 2f * zoomedInSize * fallbackAspectRatio;
+    }
+    
     void PlaceLightningBoltsFallback(List<Vector3> nightBlocks, List<Vector3> dayBlocks)
     {
         Vector3[] fallbackPositions = new Vector3[]
@@ -551,20 +625,51 @@ public class Level4Generator : MonoBehaviour
 
     void PlaceMonsters()
     {
-        // Place Flying Eye monsters
-        CreateMonster(new Vector3(20f, 1.6f, 0f), Monster.MonsterType.FlyingEye);
-        CreateMonster(new Vector3(40f, 2.2f, 0f), Monster.MonsterType.FlyingEye);
-        CreateMonster(new Vector3(55f, 2.4f, 0f), Monster.MonsterType.FlyingEye);
-        CreateMonster(new Vector3(75f, 1.9f, 0f), Monster.MonsterType.FlyingEye);
-        CreateMonster(new Vector3(95f, 1.8f, 0f), Monster.MonsterType.FlyingEye);
-        CreateMonster(new Vector3(120f, 1.6f, 0f), Monster.MonsterType.FlyingEye);
-        
-        // Place Mushroom monsters on grass blocks
+        // Level 13: All monster types (15 total monsters)
+        PlaceFlyingEyeMonsters();
         PlaceMushroomMonstersOnGrass();
+        PlaceGoblinMonsters();
+        PlaceSkeletonMonsters();
+    }
+    
+    /// <summary>
+    /// Place Flying Eye monsters - Level 13: 4 FlyingEye
+    /// </summary>
+    void PlaceFlyingEyeMonsters()
+    {
+        // Level 13: 4 FlyingEye monsters (distributed across 170 blocks)
+        CreateMonster(new Vector3(30f, 2.5f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(65f, 2.8f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(110f, 2.6f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(150f, 2.7f, 0f), Monster.MonsterType.FlyingEye);
+    }
+    
+    /// <summary>
+    /// Place Goblin monsters - Level 13: 4 Goblin
+    /// </summary>
+    void PlaceGoblinMonsters()
+    {
+        // Level 13: 4 Goblin monsters on ground
+        CreateMonster(new Vector3(25f, 0.8f, 0f), Monster.MonsterType.Goblin);
+        CreateMonster(new Vector3(60f, 0.9f, 0f), Monster.MonsterType.Goblin);
+        CreateMonster(new Vector3(100f, 0.8f, 0f), Monster.MonsterType.Goblin);
+        CreateMonster(new Vector3(140f, 0.9f, 0f), Monster.MonsterType.Goblin);
+    }
+    
+    /// <summary>
+    /// Place Skeleton monsters - Level 13: 3 Skeleton
+    /// </summary>
+    void PlaceSkeletonMonsters()
+    {
+        // Level 13: 3 Skeleton monsters on ground
+        CreateMonster(new Vector3(20f, 0.7f, 0f), Monster.MonsterType.Skeleton);
+        CreateMonster(new Vector3(80f, 0.8f, 0f), Monster.MonsterType.Skeleton);
+        CreateMonster(new Vector3(130f, 0.7f, 0f), Monster.MonsterType.Skeleton);
     }
     
     void PlaceMushroomMonstersOnGrass()
     {
+        // Level 5: Place 3-4 Mushroom monsters at strategic positions
         FloorBlock[] allFloorBlocks = FindObjectsByType<FloorBlock>(FindObjectsSortMode.None);
         List<Vector3> grassBlockPositions = new List<Vector3>();
         
@@ -584,28 +689,32 @@ public class Level4Generator : MonoBehaviour
         
         grassBlockPositions.Sort((a, b) => a.x.CompareTo(b.x));
         
-        float minDistanceBetweenMushrooms = 5f * blockSize;
+        float minDistanceBetweenMushrooms = 15f * blockSize; // At least 15 blocks apart
         float playerStartX = 1f * blockSize;
-        float avoidStartArea = playerStartX + (10f * blockSize);
+        float avoidStartArea = playerStartX + (15f * blockSize);
+        
+        int blocksPerOriginal = 10;
+        float subBlockSize = blockSize / blocksPerOriginal;
+        float finishX = (totalFloorBlocks * blockSize) + (blocksPerOriginal * subBlockSize) - 2f;
+        float avoidFinishArea = finishX - (15f * blockSize);
+        
         float lastMushroomX = -1000f;
         int mushroomsPlaced = 0;
+        int maxMushrooms = 4; // Level 13: 4 Mushroom monsters (to total 13-14 with other types)
         
         foreach (Vector3 grassPos in grassBlockPositions)
         {
-            if (grassPos.x < avoidStartArea) continue;
-            if (grassPos.x - lastMushroomX < minDistanceBetweenMushrooms) continue;
+            if (mushroomsPlaced >= maxMushrooms) break;
             
-            int blocksPerOriginal = 10;
-            float subBlockSize = blockSize / blocksPerOriginal;
-            float finishX = (totalFloorBlocks * blockSize) + (blocksPerOriginal * subBlockSize) - 2f;
-            if (grassPos.x > finishX - (5f * blockSize)) continue;
+            if (grassPos.x < avoidStartArea || grassPos.x > avoidFinishArea) continue;
+            if (grassPos.x - lastMushroomX < minDistanceBetweenMushrooms) continue;
             
             CreateMonster(grassPos, Monster.MonsterType.Mushroom);
             lastMushroomX = grassPos.x;
             mushroomsPlaced++;
         }
         
-        Debug.Log($"Placed {mushroomsPlaced} mushrooms on grass blocks");
+        Debug.Log($"Level 5: Placed {mushroomsPlaced} mushrooms on grass blocks");
     }
     
     void SetupWinnerScreen()
@@ -615,23 +724,54 @@ public class Level4Generator : MonoBehaviour
         {
             GameObject winnerScreenObj = new GameObject("WinnerScreen");
             WinnerScreen winnerScreen = winnerScreenObj.AddComponent<WinnerScreen>();
-            winnerScreen.SetCurrentLevel(4);
+            winnerScreen.SetCurrentLevel(13);
+        }
+    }
+    
+    void SetupBlockManager()
+    {
+        BlockManager existingManager = FindFirstObjectByType<BlockManager>();
+        if (existingManager == null)
+        {
+            GameObject blockManagerObj = new GameObject("BlockManager");
+            BlockManager blockManager = blockManagerObj.AddComponent<BlockManager>();
+            blockManager.autoFindBlocks = true;
+        }
+    }
+    
+    void SetupTimeOfDayController()
+    {
+        TimeOfDayController existingController = FindFirstObjectByType<TimeOfDayController>();
+        if (existingController == null)
+        {
+            GameObject timeControllerObj = new GameObject("TimeOfDayController");
+            TimeOfDayController controller = timeControllerObj.AddComponent<TimeOfDayController>();
+            controller.isDayTime = true;
         }
     }
 
     void PlaceFinishLine()
     {
+        // Calculate finish line position at end of level
         int blocksPerOriginal = 10;
         float subBlockSize = blockSize / blocksPerOriginal;
         float finishX = (totalFloorBlocks * blockSize) + (blocksPerOriginal * subBlockSize * 0.5f);
         
-        GameObject finishObj = new GameObject("FinishLine");
-        finishObj.transform.position = new Vector3(finishX, 4.0f, 0f);
-        finishObj.transform.SetParent(itemsParent);
+        // Position on ground level (Level 5 is higher, so adjust Y)
+        float finishY = 1.5f; // On top of ground
         
-        BoxCollider2D finishCollider = finishObj.AddComponent<BoxCollider2D>();
-        finishCollider.size = new Vector2(2f, 4f);
-        finishCollider.isTrigger = true;
+        CreateFinishLine(new Vector3(finishX, finishY, 0f));
+    }
+    
+    void CreateFinishLine(Vector3 position)
+    {
+        GameObject finishLine = new GameObject("FinishLine");
+        finishLine.transform.position = position;
+        finishLine.transform.SetParent(itemsParent);
+        
+        FinishLine finish = finishLine.AddComponent<FinishLine>();
+        finish.requireAllBolts = true; // Player must collect all bolts to win
+        finish.nextLevelSceneName = ""; // Leave empty to return to menu, or set to next level scene name
     }
 
     void CreatePlayer(Vector3 position)
@@ -889,6 +1029,62 @@ public class Level4Generator : MonoBehaviour
         monsterComponent.monsterColor = Color.white;
         monsterComponent.size = 0.8f;
         monsterComponent.visibleOnlyAtNight = true;
+        
+        // Add Rigidbody2D for movement (indie game pattern)
+        Rigidbody2D rb = monster.AddComponent<Rigidbody2D>();
+        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.freezeRotation = true;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.gravityScale = monsterType == Monster.MonsterType.FlyingEye ? 0f : 1f; // Only Flying Eye doesn't fall
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        
+        // Add MonsterAI for movement behavior (indie game pattern)
+        MonsterAI monsterAI = monster.AddComponent<MonsterAI>();
+        
+        // Configure AI based on monster type
+        if (monsterType == Monster.MonsterType.Mushroom)
+        {
+            monsterAI.canPatrol = true;
+            monsterAI.patrolStartX = position.x - 3f;
+            monsterAI.patrolEndX = position.x + 3f;
+            monsterAI.patrolSpeed = 1.5f;
+            monsterAI.canChasePlayer = true;
+            monsterAI.chaseSpeed = 2.5f;
+            monsterAI.chaseRange = 5f;
+        }
+        else if (monsterType == Monster.MonsterType.FlyingEye)
+        {
+            monsterAI.canPatrol = true;
+            monsterAI.patrolStartX = position.x - 4f;
+            monsterAI.patrolEndX = position.x + 4f;
+            monsterAI.patrolSpeed = 2f;
+            monsterAI.canChasePlayer = true;
+            monsterAI.chaseSpeed = 3f;
+            monsterAI.chaseRange = 6f;
+        }
+        else if (monsterType == Monster.MonsterType.Goblin)
+        {
+            monsterAI.canPatrol = true;
+            monsterAI.patrolStartX = position.x - 4f;
+            monsterAI.patrolEndX = position.x + 4f;
+            monsterAI.patrolSpeed = 2f;
+            monsterAI.canChasePlayer = true;
+            monsterAI.chaseSpeed = 3f;
+            monsterAI.chaseRange = 6f;
+        }
+        else if (monsterType == Monster.MonsterType.Skeleton)
+        {
+            monsterAI.canPatrol = true;
+            monsterAI.patrolStartX = position.x - 3f;
+            monsterAI.patrolEndX = position.x + 3f;
+            monsterAI.patrolSpeed = 1.2f;
+            monsterAI.canChasePlayer = true;
+            monsterAI.chaseSpeed = 2.8f;
+            monsterAI.chaseRange = 7f;
+        }
+        
+        // Add MonsterAnimationController for animations (indie game pattern)
+        MonsterAnimationController animController = monster.AddComponent<MonsterAnimationController>();
     }
 
     void ClearLevel()

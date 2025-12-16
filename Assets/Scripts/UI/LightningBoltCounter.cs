@@ -21,6 +21,7 @@ public class LightningBoltCounter : MonoBehaviour
     private RectTransform counterRect;
     private Text shadowText; // Shadow text for better visibility
     private int totalBoltsInLevel = 12; // Total number of lightning bolts in the level
+    private int originalTotalBolts = 12; // Store original total (before any are collected/destroyed)
     
     void Start()
     {
@@ -80,8 +81,9 @@ public class LightningBoltCounter : MonoBehaviour
             UpdateCounter(gameManager.totalBoltsCollected);
         }
         
-        // Get total bolt count from GameManager
+        // Get total bolt count from GameManager and store original
         RefreshTotalBolts();
+        originalTotalBolts = totalBoltsInLevel; // Store original count
     }
     
     void OnDestroy()
@@ -197,25 +199,43 @@ public class LightningBoltCounter : MonoBehaviour
     /// <summary>
     /// Refresh total bolts count from GameManager
     /// </summary>
-    void RefreshTotalBolts()
+    public void RefreshTotalBolts()
     {
-        if (gameManager != null)
+        // Count all lightning bolts in the scene (including inactive ones)
+        LightningBolt[] allBolts = FindObjectsByType<LightningBolt>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        int count = 0;
+        foreach (LightningBolt bolt in allBolts)
         {
-            // Count all lightning bolts in the scene
-            LightningBolt[] allBolts = FindObjectsByType<LightningBolt>(FindObjectsSortMode.None);
-            totalBoltsInLevel = allBolts.Length;
+            if (bolt != null && !bolt.isCollected)
+            {
+                count++;
+            }
+        }
+        totalBoltsInLevel = count;
+        
+        // Also update display if counter text exists
+        if (counterText != null && originalTotalBolts == 0)
+        {
+            originalTotalBolts = totalBoltsInLevel;
+            UpdateCounter(gameManager != null ? gameManager.totalBoltsCollected : 0);
         }
     }
     
     /// <summary>
     /// Update the counter display
     /// </summary>
-    void UpdateCounter(int count)
+    public void UpdateCounter(int count)
     {
-        // Refresh total bolts count (in case level was regenerated)
-        RefreshTotalBolts();
+        // Use original total bolts count (don't recalculate - bolts may be disabled)
+        // Only refresh if we haven't stored the original yet
+        if (originalTotalBolts == 0)
+        {
+            RefreshTotalBolts();
+            originalTotalBolts = totalBoltsInLevel;
+        }
         
-        string displayText = string.Format(displayFormat, count, totalBoltsInLevel);
+        // Use original total, not current count (which may be lower due to disabled bolts)
+        string displayText = string.Format(displayFormat, count, originalTotalBolts);
         
         if (counterText != null)
         {
@@ -226,6 +246,16 @@ public class LightningBoltCounter : MonoBehaviour
         {
             shadowText.text = displayText;
         }
+    }
+    
+    /// <summary>
+    /// Reset the counter to use original total (called when level resets)
+    /// </summary>
+    public void ResetToOriginalTotal()
+    {
+        RefreshTotalBolts();
+        originalTotalBolts = totalBoltsInLevel;
+        UpdateCounter(0);
     }
 }
 

@@ -31,13 +31,22 @@ public class Level5Generator : MonoBehaviour
 
     void Start()
     {
+        // Check if LevelManager wants to control generation
+        LevelManager levelManager = FindFirstObjectByType<LevelManager>();
+        if (levelManager != null && levelManager.currentLevel != 5)
+        {
+            // LevelManager will handle generation, don't auto-generate
+            gameObject.SetActive(false);
+            return;
+        }
+        
         if (generateOnStart)
         {
-            GenerateLevel2();
+            GenerateLevel5();
         }
     }
 
-    public void GenerateLevel2()
+    public void GenerateLevel5()
     {
         ClearLevel();
 

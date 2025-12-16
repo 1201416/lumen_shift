@@ -11,9 +11,10 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
     public float moveSpeed = 5f;
-    public float jumpForce = 6f; // Reduced jump height
-    [Tooltip("Movement speed multiplier when in air (0.5 = half speed)")]
-    public float airMovementMultiplier = 0.5f; // Half speed in air
+    [Tooltip("Jump force - automatically calculated as 6x character height")]
+    public float jumpForce = 0f; // Will be calculated based on character height
+    [Tooltip("Movement speed multiplier when in air (0.25 = 25% speed, 75% slower)")]
+    public float airMovementMultiplier = 0.25f; // 25% speed in air (75% slower)
     [Tooltip("Maximum step height the player can walk up (in units)")]
     public float maxStepHeight = 1.1f; // Slightly more than 1 block to allow stepping up
     
@@ -96,6 +97,9 @@ public class PlayerController : MonoBehaviour
         // Ensure transform rotation is correct (facing right, not sideways)
         transform.rotation = Quaternion.identity;
         
+        // Calculate jump force based on character height (2x character height)
+        CalculateJumpForce();
+        
         // Add collider visualizer for debugging (only in editor)
         #if UNITY_EDITOR
         if (GetComponent<ColliderVisualizer>() == null)
@@ -107,6 +111,36 @@ public class PlayerController : MonoBehaviour
             visualizer.showInSceneView = true;
         }
         #endif
+    }
+    
+    /// <summary>
+    /// Calculate jump force to be 6x character height (3x bigger than previous 2x)
+    /// </summary>
+    void CalculateJumpForce()
+    {
+        if (jumpForce > 0f) return; // Already set
+        
+        Collider2D playerCollider = GetComponent<Collider2D>();
+        if (playerCollider != null && rb != null)
+        {
+            float characterHeight = playerCollider.bounds.size.y;
+            // Jump height = 6x character height (3x bigger than previous 2x)
+            // Physics formula: v = sqrt(2 * g * h)
+            // With gravityScale = 3f and Physics2D.gravity = -9.81
+            float targetHeight = characterHeight * 6f;
+            float effectiveGravity = rb.gravityScale * Mathf.Abs(Physics2D.gravity.y);
+            jumpForce = Mathf.Sqrt(2f * effectiveGravity * targetHeight);
+            
+            Debug.Log($"Calculated jump force: {jumpForce} (character height: {characterHeight}, target jump height: {targetHeight})");
+        }
+        else
+        {
+            // Fallback: use default based on typical character height (0.5 units)
+            float defaultHeight = 0.5f;
+            float targetHeight = defaultHeight * 6f;
+            float effectiveGravity = 3f * 9.81f;
+            jumpForce = Mathf.Sqrt(2f * effectiveGravity * targetHeight);
+        }
     }
     
     /// <summary>
@@ -350,7 +384,56 @@ public class PlayerController : MonoBehaviour
             isGrounded = false;
         }
         
+        // Check if player fell off camera (below death zone)
+        CheckFallDeath();
+        
         lastPosition = transform.position;
+    }
+    
+    /// <summary>
+    /// Check if player has fallen below camera bounds and kill them
+    /// </summary>
+    void CheckFallDeath()
+    {
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            mainCamera = FindFirstObjectByType<Camera>();
+        }
+        
+        if (mainCamera != null)
+        {
+            // Calculate camera bottom edge (camera Y - orthographic size)
+            float cameraBottom = mainCamera.transform.position.y - mainCamera.orthographicSize;
+            float deathZone = cameraBottom - 2f; // 2 units below camera bottom
+            
+            // If player is below death zone, kill them
+            if (transform.position.y < deathZone)
+            {
+                KillPlayerFromFall();
+            }
+        }
+        else
+        {
+            // Fallback: kill if player falls below -10
+            if (transform.position.y < -10f)
+            {
+                KillPlayerFromFall();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Kill player when falling off camera
+    /// </summary>
+    void KillPlayerFromFall()
+    {
+        DeathScreen deathScreen = FindFirstObjectByType<DeathScreen>();
+        if (deathScreen != null && !deathScreen.isShowing)
+        {
+            deathScreen.ShowDeathScreen();
+            Debug.Log("Player died from falling!");
+        }
     }
     
     /// <summary>
@@ -520,39 +603,56 @@ public class PlayerController : MonoBehaviour
         Collider2D playerCollider = GetComponent<Collider2D>();
         if (playerCollider == null) return false;
         
-        // Check if there's a block above the player using multiple methods
-        Vector2 playerTop = new Vector2(transform.position.x, playerCollider.bounds.max.y);
-        float checkDistance = 1f; // Check up to 1 unit above player (more aggressive)
+        float playerTop = playerCollider.bounds.max.y;
+        float playerHalfHeight = playerCollider.bounds.size.y * 0.5f;
+        float checkDistance = 1.5f; // Check up to 1.5 units above player (more aggressive)
         
-        // Method 1: Raycast upward
-        RaycastHit2D hit = Physics2D.Raycast(playerTop, Vector2.up, checkDistance);
+        // Method 1: Raycast upward from player's top
+        RaycastHit2D hit = Physics2D.Raycast(
+            new Vector2(transform.position.x, playerTop), 
+            Vector2.up, 
+            checkDistance
+        );
         if (hit.collider != null)
         {
             // Check if it's a block
             if (hit.collider.GetComponent<BoxBlock>() != null)
             {
-                return true; // There's a block above
+                // Verify player is actually below the block
+                float blockBottom = hit.collider.bounds.min.y;
+                if (playerTop <= blockBottom + 0.2f) // Within 0.2 units of block bottom
+                {
+                    return true; // There's a block above
+                }
             }
         }
         
-        // Method 2: Overlap check at player's top
-        Collider2D[] overlaps = Physics2D.OverlapPointAll(playerTop);
-        foreach (Collider2D col in overlaps)
+        // Method 2: OverlapBox check above player (more reliable than point check)
+        Vector2 checkCenter = new Vector2(transform.position.x, playerTop + 0.3f);
+        Vector2 checkSize = new Vector2(playerCollider.bounds.size.x * 0.8f, 0.5f);
+        Collider2D overlap = Physics2D.OverlapBox(checkCenter, checkSize, 0f);
+        if (overlap != null && overlap.GetComponent<BoxBlock>() != null && overlap != playerCollider)
         {
-            if (col != null && col.GetComponent<BoxBlock>() != null && col != playerCollider)
-            {
-                return true; // There's a block at player's top
-            }
-        }
-        
-        // Method 3: Check slightly above player's top
-        Vector2 checkAbove = playerTop + Vector2.up * 0.1f;
-        overlaps = Physics2D.OverlapPointAll(checkAbove);
-        foreach (Collider2D col in overlaps)
-        {
-            if (col != null && col.GetComponent<BoxBlock>() != null && col != playerCollider)
+            float blockBottom = overlap.bounds.min.y;
+            if (playerTop <= blockBottom + 0.2f)
             {
                 return true; // There's a block above player
+            }
+        }
+        
+        // Method 3: Multiple raycasts across player width to catch edge cases
+        float playerWidth = playerCollider.bounds.size.x;
+        for (float offset = -playerWidth * 0.4f; offset <= playerWidth * 0.4f; offset += playerWidth * 0.2f)
+        {
+            Vector2 rayOrigin = new Vector2(transform.position.x + offset, playerTop);
+            hit = Physics2D.Raycast(rayOrigin, Vector2.up, checkDistance);
+            if (hit.collider != null && hit.collider.GetComponent<BoxBlock>() != null)
+            {
+                float blockBottom = hit.collider.bounds.min.y;
+                if (playerTop <= blockBottom + 0.2f)
+                {
+                    return true;
+                }
             }
         }
         
@@ -561,6 +661,7 @@ public class PlayerController : MonoBehaviour
     
     /// <summary>
     /// Check if player is hitting a block from below (head hitting bottom of block)
+    /// More aggressive detection to prevent teleportation
     /// </summary>
     bool IsHittingBlockFromBelow(Collision2D collision)
     {
@@ -585,30 +686,37 @@ public class PlayerController : MonoBehaviour
         float blockCenterY = (blockBottom + blockTop) * 0.5f;
         
         // Player is hitting from below if:
-        // 1. Player's center is clearly below the block's center
-        // 2. Player's top is touching or very close to the block's bottom
+        // 1. Player's center is clearly below the block's center (more strict)
+        // 2. Player's top is touching or very close to the block's bottom (tighter tolerance)
         
-        bool playerIsBelowBlock = playerCenterY < blockCenterY;
-        bool playerTopTouchingBlockBottom = playerTop >= blockBottom - 0.2f && playerTop <= blockBottom + 0.2f;
+        bool playerIsBelowBlock = playerCenterY < blockCenterY - 0.1f; // More strict: must be clearly below
+        bool playerTopTouchingBlockBottom = playerTop >= blockBottom - 0.05f && playerTop <= blockBottom + 0.15f; // Tighter tolerance
         
-        if (!playerIsBelowBlock || !playerTopTouchingBlockBottom) return false;
+        // Also check if player is moving upward and would collide
+        bool movingUpward = rb.linearVelocity.y > 0.1f;
+        
+        // If player is below block and top is near block bottom, it's a head collision
+        if (playerIsBelowBlock && playerTopTouchingBlockBottom)
+        {
+            return true;
+        }
         
         // Check contact normals - if they point down (negative Y), we're hitting from below
         bool hasDownwardNormal = false;
         foreach (ContactPoint2D contact in collision.contacts)
         {
             // Normal pointing down (negative Y) means we hit the bottom of the block
-            if (contact.normal.y < -0.3f)
+            if (contact.normal.y < -0.2f) // More lenient normal check
             {
                 hasDownwardNormal = true;
                 break;
             }
         }
         
-        // If we have a downward normal OR player is clearly underneath, it's a head collision
-        if (hasDownwardNormal || (playerTopTouchingBlockBottom && playerIsBelowBlock))
+        // If we have a downward normal AND player is below, it's definitely a head collision
+        if (hasDownwardNormal && playerIsBelowBlock)
         {
-            return true; // Player is hitting block from below
+            return true;
         }
         
         return false;
@@ -617,6 +725,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Prevent player from being pushed upward when hitting block from below
     /// Allows player to continue moving horizontally underneath
+    /// More aggressive prevention to stop teleportation
     /// </summary>
     void PreventUpwardPush(Collision2D collision)
     {
@@ -627,7 +736,10 @@ public class PlayerController : MonoBehaviour
         float blockBottom = blockCollider.bounds.min.y;
         float playerTop = playerCollider.bounds.max.y;
         float playerHeight = playerCollider.bounds.size.y;
-        float playerCenterY = transform.position.y;
+        float playerHalfHeight = playerHeight * 0.5f;
+        
+        // Calculate maximum allowed Y position: block bottom minus player half height minus safety gap
+        float maxAllowedY = blockBottom - playerHalfHeight - 0.12f; // Larger safety gap
         
         // Get current velocity
         Vector2 velocity = rb.linearVelocity;
@@ -635,35 +747,31 @@ public class PlayerController : MonoBehaviour
         // CRITICAL: Cancel ALL upward velocity immediately - prevent any jumping up
         if (velocity.y > 0f)
         {
-            velocity.y = -0.2f; // Force downward velocity to prevent sticking and teleportation
+            velocity.y = -0.5f; // Strong downward velocity to prevent sticking and teleportation
         }
         
-        // Calculate desired Y position: block bottom minus half player height minus gap
-        float desiredY = blockBottom - (playerHeight * 0.5f) - 0.08f; // Larger gap to prevent sticking
-        
-        // CRITICAL: If player's top is at or above block's bottom, IMMEDIATELY reposition
+        // CRITICAL: If player's top is at or above block's bottom, IMMEDIATELY clamp position
         // This prevents Unity's physics from pushing the player up
-        if (playerTop >= blockBottom - 0.05f)
+        if (playerTop >= blockBottom - 0.02f)
         {
-            // Immediately set position (no lerping) to prevent teleportation
-            transform.position = new Vector3(transform.position.x, desiredY, transform.position.z);
+            // Immediately clamp position to maximum allowed Y (no lerping) to prevent teleportation
+            float clampedY = Mathf.Min(transform.position.y, maxAllowedY);
+            transform.position = new Vector3(transform.position.x, clampedY, transform.position.z);
             
             // Force strong downward velocity to prevent any upward movement
-            velocity.y = -0.3f; // Stronger downward velocity
+            velocity.y = -0.5f; // Very strong downward velocity
         }
-        // If player is close but not penetrating, adjust quickly
-        else if (playerTop > blockBottom - 0.2f)
+        // If player is close to block bottom, clamp position preemptively
+        else if (playerTop > blockBottom - 0.15f)
         {
-            // Only adjust if significantly above desired position
-            if (transform.position.y > desiredY + 0.05f)
+            // Clamp position if above max allowed
+            if (transform.position.y > maxAllowedY)
             {
-                // Very fast correction but preserve horizontal position
-                float newY = Mathf.Lerp(transform.position.y, desiredY, Time.fixedDeltaTime * 60f);
-                transform.position = new Vector3(transform.position.x, newY, transform.position.z);
+                transform.position = new Vector3(transform.position.x, maxAllowedY, transform.position.z);
             }
             
             // Ensure downward velocity (never upward)
-            velocity.y = Mathf.Min(velocity.y, -0.1f); // Always downward
+            velocity.y = Mathf.Min(velocity.y, -0.2f); // Always downward
         }
         
         // Preserve horizontal velocity so player can continue moving underneath
@@ -740,10 +848,27 @@ public class PlayerController : MonoBehaviour
     {
         // CRITICAL: Check if player is hitting the bottom of a block (head collision)
         // If so, prevent upward movement/teleportation - check this FIRST
+        // Check this EVERY frame while colliding to prevent any teleportation
         if (IsHittingBlockFromBelow(collision))
         {
             // Player is underneath a block - prevent being pushed up
             PreventUpwardPush(collision);
+            
+            // Also do an immediate position clamp as a safety measure
+            Collider2D blockCollider = collision.collider;
+            Collider2D playerCollider = GetComponent<Collider2D>();
+            if (blockCollider != null && playerCollider != null)
+            {
+                float blockBottom = blockCollider.bounds.min.y;
+                float playerHeight = playerCollider.bounds.size.y;
+                float maxAllowedY = blockBottom - (playerHeight * 0.5f) - 0.12f;
+                
+                if (transform.position.y > maxAllowedY)
+                {
+                    transform.position = new Vector3(transform.position.x, maxAllowedY, transform.position.z);
+                }
+            }
+            
             return; // Don't process as normal collision
         }
         
@@ -799,10 +924,40 @@ public class PlayerController : MonoBehaviour
         // This prevents Unity's physics from pushing us up
         if (IsUnderneathBlock())
         {
-            // Force downward velocity to prevent any upward movement
-            if (rb.linearVelocity.y > 0f)
+            Collider2D playerCollider = GetComponent<Collider2D>();
+            if (playerCollider != null)
             {
-                rb.linearVelocity = new Vector2(rb.linearVelocity.x, -0.2f);
+                // Find the block above us
+                float playerTop = playerCollider.bounds.max.y;
+                RaycastHit2D hit = Physics2D.Raycast(
+                    new Vector2(transform.position.x, playerTop), 
+                    Vector2.up, 
+                    1.5f
+                );
+                
+                if (hit.collider != null && hit.collider.GetComponent<BoxBlock>() != null)
+                {
+                    float blockBottom = hit.collider.bounds.min.y;
+                    float playerHeight = playerCollider.bounds.size.y;
+                    float maxAllowedY = blockBottom - (playerHeight * 0.5f) - 0.12f;
+                    
+                    // Clamp position if too high
+                    if (transform.position.y > maxAllowedY)
+                    {
+                        transform.position = new Vector3(transform.position.x, maxAllowedY, transform.position.z);
+                    }
+                    
+                    // Force downward velocity to prevent any upward movement
+                    if (rb.linearVelocity.y > 0f)
+                    {
+                        rb.linearVelocity = new Vector2(rb.linearVelocity.x, -0.5f);
+                    }
+                    else if (rb.linearVelocity.y > -0.2f)
+                    {
+                        // Even if not moving up, ensure slight downward velocity to prevent sticking
+                        rb.linearVelocity = new Vector2(rb.linearVelocity.x, -0.2f);
+                    }
+                }
             }
         }
     }
@@ -938,6 +1093,12 @@ public class PlayerController : MonoBehaviour
         polygonCol.SetPath(0, points2);
     }
     
+    void Start()
+    {
+        // Calculate jump force after collider is fully set up
+        CalculateJumpForce();
+    }
+    
     void LateUpdate()
     {
         // CRITICAL: Ensure polygon collider matches sprite shape after sprite is loaded
@@ -952,6 +1113,42 @@ public class PlayerController : MonoBehaviour
             {
                 SetupPolygonColliderFromSprite(polygonCol, sr.sprite);
                 lastSprite = sr.sprite;
+                // Recalculate jump force if collider changed
+                CalculateJumpForce();
+            }
+        }
+        
+        // CRITICAL: Final check after all physics updates to prevent teleportation
+        // This catches any position changes that might have happened after FixedUpdate
+        if (IsUnderneathBlock())
+        {
+            Collider2D playerCollider = GetComponent<Collider2D>();
+            if (playerCollider != null)
+            {
+                float playerTop = playerCollider.bounds.max.y;
+                RaycastHit2D hit = Physics2D.Raycast(
+                    new Vector2(transform.position.x, playerTop), 
+                    Vector2.up, 
+                    1.5f
+                );
+                
+                if (hit.collider != null && hit.collider.GetComponent<BoxBlock>() != null)
+                {
+                    float blockBottom = hit.collider.bounds.min.y;
+                    float playerHeight = playerCollider.bounds.size.y;
+                    float maxAllowedY = blockBottom - (playerHeight * 0.5f) - 0.12f;
+                    
+                    // Final position clamp - this is the last chance to prevent teleportation
+                    if (transform.position.y > maxAllowedY)
+                    {
+                        transform.position = new Vector3(transform.position.x, maxAllowedY, transform.position.z);
+                        // Also ensure velocity is downward
+                        if (rb.linearVelocity.y > 0f)
+                        {
+                            rb.linearVelocity = new Vector2(rb.linearVelocity.x, -0.5f);
+                        }
+                    }
+                }
             }
         }
     }

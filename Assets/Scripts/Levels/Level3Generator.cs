@@ -31,6 +31,15 @@ public class Level3Generator : MonoBehaviour
 
     void Start()
     {
+        // Check if LevelManager wants to control generation
+        LevelManager levelManager = FindFirstObjectByType<LevelManager>();
+        if (levelManager != null && levelManager.currentLevel != 3)
+        {
+            // LevelManager will handle generation, don't auto-generate
+            gameObject.SetActive(false);
+            return;
+        }
+        
         if (generateOnStart)
         {
             GenerateLevel3();

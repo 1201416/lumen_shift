@@ -16,7 +16,7 @@ public class DeathScreen : MonoBehaviour
     
     [Header("Settings")]
     public string deathMessage = "You died!";
-    public string respawnButtonTextStr = "Respawn";
+    public string respawnButtonTextStr = "Respawn (R)";
     
     private GameManager gameManager;
     private Vector3 playerSpawnPosition;
@@ -200,6 +200,9 @@ public class DeathScreen : MonoBehaviour
             }
         }
         
+        // Reset lightning bolts and counter
+        ResetLightningBolts();
+        
         // Find or get player spawn position
         FirstLevelGenerator levelGen = FindFirstObjectByType<FirstLevelGenerator>();
         if (levelGen != null)
@@ -229,7 +232,39 @@ public class DeathScreen : MonoBehaviour
             }
         }
         
-        Debug.Log("Player respawned!");
+        Debug.Log("Player respawned! Lightning bolts reset.");
+    }
+    
+    /// <summary>
+    /// Reset all lightning bolts to uncollected state and reset counter
+    /// </summary>
+    void ResetLightningBolts()
+    {
+        // Reset GameManager bolt count
+        if (gameManager != null)
+        {
+            gameManager.totalBoltsCollected = 0;
+            gameManager.RefreshAllObjects(); // Refresh bolt list
+        }
+        
+        // Reset all lightning bolts in the scene (including inactive ones)
+        LightningBolt[] allBolts = FindObjectsByType<LightningBolt>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var bolt in allBolts)
+        {
+            if (bolt != null)
+            {
+                bolt.ResetBolt();
+            }
+        }
+        
+        // Update counter display and reset to original total
+        LightningBoltCounter counter = FindFirstObjectByType<LightningBoltCounter>();
+        if (counter != null)
+        {
+            counter.ResetToOriginalTotal();
+        }
+        
+        Debug.Log($"Reset {allBolts.Length} lightning bolts");
     }
 }
 

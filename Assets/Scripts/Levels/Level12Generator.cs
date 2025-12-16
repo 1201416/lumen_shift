@@ -1,9 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Generates Level 2 - Simple fixed level with 2 lightning bolts
+/// Generates Level 12 - Simple fixed level with 7 lightning bolts
 /// </summary>
-public class Level2Generator : MonoBehaviour
+public class Level12Generator : MonoBehaviour
 {
     [Header("Level Settings")]
     public float blockSize = 1f;
@@ -23,13 +23,13 @@ public class Level2Generator : MonoBehaviour
     public bool generateOnStart = true;
     
     private GameObject playerInstance;
-    private int levelLength = 25; // Fixed length
+    private int levelLength = 50; // Fixed length (Level 11-12: 7 bolts)
 
     void Start()
     {
         // Check if LevelManager wants to control generation
         LevelManager levelManager = FindFirstObjectByType<LevelManager>();
-        if (levelManager != null && levelManager.currentLevel != 2)
+        if (levelManager != null && levelManager.currentLevel != 12)
         {
             // LevelManager will handle generation, don't auto-generate
             gameObject.SetActive(false);
@@ -38,11 +38,11 @@ public class Level2Generator : MonoBehaviour
         
         if (generateOnStart)
         {
-            GenerateLevel2();
+            GenerateLevel12();
         }
     }
 
-    public void GenerateLevel2()
+    public void GenerateLevel12()
     {
         ClearLevel();
 
@@ -62,8 +62,7 @@ public class Level2Generator : MonoBehaviour
 
         CreateBoundaryWalls();
         CreateFixedLevel();
-        // Create player at start position (on ground, visible in camera)
-        CreatePlayer(new Vector3(2f * blockSize, 1f, 0f));
+        CreatePlayer(new Vector3(1f * blockSize, 1.5f, 0f));
         SetupCamera();
         EnsureGameManagerExists();
         SetupInputSystemFixer();
@@ -82,12 +81,12 @@ public class Level2Generator : MonoBehaviour
             counter.ResetToOriginalTotal();
         }
 
-        Debug.Log("Level 2 generated successfully!");
+        Debug.Log("Level 12 generated successfully!");
     }
 
     void CreateFixedLevel()
     {
-        // Ground floor: 25 blocks
+        // Ground floor: 50 blocks
         for (int i = 0; i < levelLength; i++)
         {
             CreateFloorBlock(new Vector3(i * blockSize, 0f, 0f), FloorBlock.FloorType.Grass);
@@ -101,16 +100,39 @@ public class Level2Generator : MonoBehaviour
         CreateBoxBlock(new Vector3(12f * blockSize, 1f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(12.5f * blockSize, 1f, 0f), visibleDuringDay: false);
         
-        // Platform 3: Small platform at x=18, height 1 block (cut by half, near finish)
+        // Platform 3: Small platform at x=18, height 1 block (cut by half)
         CreateBoxBlock(new Vector3(18f * blockSize, 1f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(18.5f * blockSize, 1f, 0f), visibleDuringDay: false);
         
-        // Place 1 monster on ground
-        CreateMonster(new Vector3(10f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
+        // Platform 4: Small platform at x=24, height 1 block (cut by half)
+        CreateBoxBlock(new Vector3(24f * blockSize, 1f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(24.5f * blockSize, 1f, 0f), visibleDuringDay: false);
         
-        // Place 2 lightning bolts (Level 1-2: 2 bolts)
+        // Platform 5: Small platform at x=30, height 1 block (cut by half)
+        CreateBoxBlock(new Vector3(30f * blockSize, 1f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(30.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        
+        // Platform 6: Small platform at x=36, height 1 block (cut by half)
+        CreateBoxBlock(new Vector3(36f * blockSize, 1f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(36.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        
+        // Platform 7: Small platform at x=42, height 1 block (cut by half, near finish)
+        CreateBoxBlock(new Vector3(42f * blockSize, 1f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(42.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        
+        // Place monsters (Level 11-12: 3-4 monsters for difficulty)
+        CreateMonster(new Vector3(15f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
+        CreateMonster(new Vector3(25f * blockSize, 0.5f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(35f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
+        
+        // Place 7 lightning bolts (Level 11-12: 7 bolts)
         CreateLightningBolt(new Vector3(6.25f * blockSize, 1f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(12.25f * blockSize, 1f + 1.5f, 0f));
         CreateLightningBolt(new Vector3(18.25f * blockSize, 1f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(24.25f * blockSize, 1f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(30.25f * blockSize, 1f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(36.25f * blockSize, 1f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(42.25f * blockSize, 1f + 1.5f, 0f));
         
         // Place finish line at the end
         CreateFinishLine(new Vector3(levelLength * blockSize, 1.5f, 0f));
@@ -144,7 +166,7 @@ public class Level2Generator : MonoBehaviour
         {
             GameObject winnerScreenObj = new GameObject("WinnerScreen");
             WinnerScreen winnerScreen = winnerScreenObj.AddComponent<WinnerScreen>();
-            winnerScreen.SetCurrentLevel(2);
+            winnerScreen.SetCurrentLevel(12);
         }
     }
 

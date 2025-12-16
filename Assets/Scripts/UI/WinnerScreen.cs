@@ -369,7 +369,15 @@ public class WinnerScreen : MonoBehaviour
         Time.timeScale = 1f;
         HideWinnerScreen();
         
-        // Reload current scene
+        // Try to use LevelManager first (for same-scene progression)
+        LevelManager levelManager = FindFirstObjectByType<LevelManager>();
+        if (levelManager != null)
+        {
+            levelManager.ReloadCurrentLevel();
+            return;
+        }
+        
+        // Fallback: reload current scene
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
     
@@ -382,6 +390,15 @@ public class WinnerScreen : MonoBehaviour
         Time.timeScale = 1f;
         HideWinnerScreen();
         
+        // Try to use LevelManager first (for same-scene progression)
+        LevelManager levelManager = FindFirstObjectByType<LevelManager>();
+        if (levelManager != null)
+        {
+            levelManager.LoadNextLevel();
+            return;
+        }
+        
+        // Fallback: use scene-based loading
         if (HasNextLevel())
         {
             int nextLevel = currentLevelNumber + 1;
