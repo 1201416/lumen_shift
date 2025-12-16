@@ -1570,8 +1570,14 @@ public class FirstLevelGenerator : MonoBehaviour
         monsterComponent.size = 0.8f; // Slightly smaller than a block
         monsterComponent.visibleOnlyAtNight = true; // Monsters only appear at night
         // Note: Monster handles death through GameManager, no need for restartLevelOnDeath or levelSceneName
+        //monster patrol settings
+        monsterComponent.canMove = true;
+        monsterComponent.moveSpeed = 1.5f;
+        monsterComponent.patrol = true;
+        monsterComponent.patrolDistance = 3f;
+        monsterComponent.verticalOffset = 0.5f;
     }
-    
+
     void CreateFinishLine(Vector3 position)
     {
         GameObject finishLine = new GameObject("FinishLine");

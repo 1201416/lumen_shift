@@ -30,12 +30,31 @@ public class Monster : MonoBehaviour
     
     [Header("Future Movement Settings")]
     [Tooltip("Will be used for future movement implementation")]
-    public bool canMove = false;
+    public bool canMove = true;
     public float moveSpeed = 0f;
     public Vector2 moveDirection = Vector2.zero;
+
+    [Header("Patrol Settings")]
+    [Tooltip("When enabled the monster will patrol horizontally around its start position")]
+    public bool patrol = true;
+    [Tooltip("Total width of the patrol area in world units")]
+    public float patrolDistance = 2f;
+    [Tooltip("If true the monster starts facing left, otherwise it starts facing right")]
+    public bool startFacingLeft = true;
+
+    [Header("Positioning")]
+    [Tooltip("Vertical offset (world units) to apply to the monster so it hovers above ground")]
+    public float verticalOffset = 0.0f;
+
+    // Patrol runtime state
+    private Vector2 patrolCenter;
+    private float patrolLeftX;
+    private float patrolRightX;
+    private int patrolSign = -1;
     
     private BoxCollider2D monsterCollider;
     private SpriteRenderer spriteRenderer;
+    private Rigidbody2D rb;
     private bool isDead = false;
     private bool isDayTime = true;
     private DeathScreen deathScreen;
@@ -44,6 +63,7 @@ public class Monster : MonoBehaviour
     {
         monsterCollider = GetComponent<BoxCollider2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        rb = GetComponent<Rigidbody2D>();
         
         SetupMonster();
         
@@ -261,7 +281,44 @@ public class Monster : MonoBehaviour
         // Future: Initialize movement if canMove is enabled
         if (canMove && moveSpeed > 0f)
         {
-            // Movement will be implemented here in the future
+            // Ensure move direction is normalized and Rigidbody2D exists for kinematic movement
+            moveDirection = moveDirection.normalized;
+            if (rb == null)
+            {
+                rb = GetComponent<Rigidbody2D>();
+                if (rb == null)
+                {
+                    rb = gameObject.AddComponent<Rigidbody2D>();
+                    rb.bodyType = RigidbodyType2D.Kinematic;
+                    rb.freezeRotation = true;
+                    rb.simulated = true;
+                }
+            }
+        }
+
+        // Apply vertical offset to lift the monster above ground if requested
+        if (Mathf.Abs(verticalOffset) > 0.0001f)
+        {
+            Vector3 newPos = transform.position + Vector3.up * verticalOffset;
+            transform.position = newPos;
+            if (rb != null)
+            {
+                rb.position = new Vector2(newPos.x, newPos.y);
+            }
+        }
+
+        // Initialize patrol bounds
+        if (patrol)
+        {
+            patrolCenter = transform.position;
+            float half = Mathf.Abs(patrolDistance) * 0.5f;
+            patrolLeftX = patrolCenter.x - half;
+            patrolRightX = patrolCenter.x + half;
+            patrolSign = startFacingLeft ? -1 : 1;
+
+            // Ensure patrol enables movement
+            canMove = true;
+            moveDirection = new Vector2(patrolSign, 0f);
         }
     }
     
@@ -305,11 +362,51 @@ public class Monster : MonoBehaviour
     
     void Update()
     {
-        // Future: Handle movement if enabled
-        if (canMove && moveSpeed > 0f && !isDead)
+        // Keep Update for non-physics related per-frame logic if needed
+    }
+
+    void FixedUpdate()
+    {
+        // Handle movement using Rigidbody2D when enabled
+        if (canMove && moveSpeed > 0f && !isDead && spriteRenderer != null && spriteRenderer.enabled)
         {
-            // Movement logic will be added here
-            // Example: transform.position += (Vector3)(moveDirection * moveSpeed * Time.deltaTime);
+            // If patrolling, compute direction from patrol state
+            Vector2 dir = moveDirection;
+            if (patrol)
+            {
+                float x = rb != null ? rb.position.x : (float)transform.position.x;
+                // Reverse direction when reaching patrol bounds
+                if (x <= patrolLeftX + 0.001f)
+                {
+                    patrolSign = 1;
+                }
+                else if (x >= patrolRightX - 0.001f)
+                {
+                    patrolSign = -1;
+                }
+
+                dir = new Vector2(patrolSign, 0f);
+            }
+
+            if (dir.sqrMagnitude <= 0.0001f) return;
+
+            Vector2 movement = dir.normalized * moveSpeed * Time.fixedDeltaTime;
+
+            if (rb != null)
+            {
+                rb.MovePosition(rb.position + movement);
+            }
+            else
+            {
+                transform.position += (Vector3)movement;
+            }
+
+            // Flip sprite horizontally based on movement direction
+            if (spriteRenderer != null)
+            {
+                if (movement.x > 0.001f) spriteRenderer.flipX = false;
+                else if (movement.x < -0.001f) spriteRenderer.flipX = true;
+            }
         }
     }
     
@@ -476,6 +573,19 @@ public class Monster : MonoBehaviour
         canMove = true;
         moveSpeed = speed;
         moveDirection = direction.normalized;
+
+        // Ensure Rigidbody2D exists for physics-driven movement
+        if (rb == null)
+        {
+            rb = GetComponent<Rigidbody2D>();
+            if (rb == null)
+            {
+                rb = gameObject.AddComponent<Rigidbody2D>();
+                rb.bodyType = RigidbodyType2D.Kinematic;
+                rb.freezeRotation = true;
+                rb.simulated = true;
+            }
+        }
     }
 }
 

@@ -101,34 +101,36 @@ public class Level2Generator : MonoBehaviour
 
         // Simple ascending challenge - gentle introduction
         CreateBoxBlock(new Vector3(4f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(5f * blockSize, 3f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(6f * blockSize, 4.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(7f * blockSize, 6f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(5f * blockSize, 2f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(5.5f * blockSize, 3f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(6f * blockSize, 4f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(7f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(8f * blockSize, 5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(9f * blockSize, 6f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(9.5f * blockSize, 6f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(10f * blockSize, 6f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(10.5f * blockSize, 6f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(12f * blockSize, 7.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(13f * blockSize, 9f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(14f * blockSize, 10.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(16f * blockSize, 10.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(16.5f * blockSize, 10.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(17f * blockSize, 10.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(19f * blockSize, 7.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(20f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(11.5f * blockSize, 7f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 8f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(13.5f * blockSize, 9f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(14.5f * blockSize, 9.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(15f * blockSize, 9.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(15.5f * blockSize, 9.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(17.5f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(19f * blockSize, 4.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(22f * blockSize, 4.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(22.5f * blockSize, 4.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(23f * blockSize, 4.5f, 0f), visibleDuringDay: false);
 
         // Place monsters on platforms:
-        CreateMonster(new Vector3(6.5f * blockSize, 4.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
-        CreateMonster(new Vector3(10f * blockSize, 6f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
+        //CreateMonster(new Vector3(6.5f * blockSize, 4.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
+        //CreateMonster(new Vector3(10f * blockSize, 6f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
 
         // Place 2 lightning bolts - ONLY reachable by climbing/platforming:
         // Bolt 1: Requires platforming
         CreateLightningBolt(new Vector3(10f * blockSize, 8f, 0f));
         // Bolt 2: Requires platforming
-        CreateLightningBolt(new Vector3(17f * blockSize, 12.0f, 0f));
+        CreateLightningBolt(new Vector3(15f * blockSize, 11f, 0f));
 
         // Place finish line at the end
         CreateFinishLine(new Vector3((levelLength - 5) * blockSize, 1.5f, 0f));
@@ -531,6 +533,11 @@ public class Level2Generator : MonoBehaviour
         monsterComponent.monsterColor = Color.white;
         monsterComponent.size = 0.8f;
         monsterComponent.visibleOnlyAtNight = true;
+        //monster patrol settings
+        monsterComponent.canMove = true;
+        monsterComponent.moveSpeed = 1.5f;
+        monsterComponent.patrol = true;
+        monsterComponent.patrolDistance = 3f;
     }
 
     void ClearLevel()
