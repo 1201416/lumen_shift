@@ -86,7 +86,7 @@ public class FirstLevelGenerator : MonoBehaviour
         SetupTutorialBackground();
 
         // Create player at start position (on ground, visible in camera)
-        CreatePlayer(new Vector3(2f * blockSize, 1f, 0f));
+        CreatePlayer(new Vector3(1f * blockSize, 1f, 0f)); // Start 1 block from left (at x=1)
 
         // Setup camera to follow player (CameraFollow script will handle it)
         SetupCamera();
@@ -376,6 +376,8 @@ public class FirstLevelGenerator : MonoBehaviour
         GameManager gameManager = FindFirstObjectByType<GameManager>();
         if (gameManager != null)
         {
+            // Reset bolt count for new level
+            gameManager.totalBoltsCollected = 0;
             gameManager.RefreshAllObjects();
             // Update time of day to ensure boxes are in correct state
             gameManager.UpdateTimeOfDay(gameManager.isDayTime);
@@ -440,10 +442,10 @@ public class FirstLevelGenerator : MonoBehaviour
             cameraFollow.cameraSize = zoomedInSize;
             mainCamera.orthographicSize = zoomedInSize;
             
-            // Calculate camera bounds - for fixed tutorial level: level goes from x=0 to x=20
-            // Player starts at x=2, so we don't want to show empty space to the left
-            float levelStartX = 1f * blockSize; // Start camera bounds at x=1 (slightly before player start)
-            float levelEndX = 20f * blockSize; // Level ends at x=20 (finish line position)
+            // Calculate camera bounds - for fixed tutorial level: level goes from x=0 to x=19 (20 blocks: 0-19)
+            // Player starts at x=1, finish line at x=15 (5 blocks from right)
+            float levelStartX = 0f * blockSize; // Level starts at x=0
+            float levelEndX = 19f * blockSize; // Last block is at x=19 (20 blocks: 0-19)
             float cameraHalfWidth = zoomedInSize * aspectRatio;
             
             // Set camera bounds to prevent showing empty space

@@ -76,14 +76,36 @@ public class LightningBoltCounter : MonoBehaviour
         // Subscribe to bolt collection events
         if (gameManager != null)
         {
+            // Unsubscribe first to avoid duplicate subscriptions
+            gameManager.OnBoltCollected -= UpdateCounter;
             gameManager.OnBoltCollected += UpdateCounter;
-            // Set initial count
-            UpdateCounter(gameManager.totalBoltsCollected);
         }
         
         // Get total bolt count from GameManager and store original
         RefreshTotalBolts();
         originalTotalBolts = totalBoltsInLevel; // Store original count
+        
+        // Reset counter display to current collected count
+        if (gameManager != null)
+        {
+            UpdateCounter(gameManager.totalBoltsCollected);
+        }
+        else
+        {
+            UpdateCounter(0);
+        }
+    }
+    
+    void OnEnable()
+    {
+        // Re-subscribe when enabled (e.g., when level loads)
+        if (gameManager != null)
+        {
+            gameManager.OnBoltCollected -= UpdateCounter; // Remove old subscription
+            gameManager.OnBoltCollected += UpdateCounter; // Add new subscription
+            // Update display with current count
+            UpdateCounter(gameManager.totalBoltsCollected);
+        }
     }
     
     void OnDestroy()
@@ -234,6 +256,12 @@ public class LightningBoltCounter : MonoBehaviour
             originalTotalBolts = totalBoltsInLevel;
         }
         
+        // Ensure we have the latest count from GameManager if available
+        if (gameManager != null)
+        {
+            count = gameManager.totalBoltsCollected;
+        }
+        
         // Use original total, not current count (which may be lower due to disabled bolts)
         string displayText = string.Format(displayFormat, count, originalTotalBolts);
         
@@ -255,6 +283,13 @@ public class LightningBoltCounter : MonoBehaviour
     {
         RefreshTotalBolts();
         originalTotalBolts = totalBoltsInLevel;
+        
+        // Reset GameManager's count if available
+        if (gameManager != null)
+        {
+            gameManager.totalBoltsCollected = 0;
+        }
+        
         UpdateCounter(0);
     }
 }

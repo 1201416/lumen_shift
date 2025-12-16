@@ -60,7 +60,7 @@ public class Level7Generator : MonoBehaviour
 
         CreateBoundaryWalls();
         CreateFixedLevel();
-        CreatePlayer(new Vector3(2f * blockSize, 1f, 0f));
+        CreatePlayer(new Vector3(1f * blockSize, 1f, 0f));
         SetupCamera();
         EnsureGameManagerExists();
         SetupInputSystemFixer();
@@ -110,7 +110,7 @@ public class Level7Generator : MonoBehaviour
         CreateLightningBolt(new Vector3(21.25f * blockSize, 1.5f + 1.5f, 0f));
         CreateLightningBolt(new Vector3(26.25f * blockSize, 1.5f + 1.5f, 0f));
         
-        CreateFinishLine(new Vector3(levelLength * blockSize, 1.5f, 0f));
+        CreateFinishLine(new Vector3((levelLength - 5) * blockSize, 1.5f, 0f));
     }
 
     void CreateBoundaryWalls()
@@ -191,30 +191,48 @@ public class Level7Generator : MonoBehaviour
             cameraFollow.target = playerInstance.transform;
         }
         
+        // Use same camera setup as Level 1 (tutorial level) for consistency
         float aspectRatio = mainCamera.aspect;
-        float cameraSize = 5f;
-        cameraFollow.cameraSize = cameraSize;
-        mainCamera.orthographicSize = cameraSize;
+        float desiredHalfWidth = 16f * 0.5f; // Half of visible blocks (16 blocks like Level 1)
+        float calculatedSize = desiredHalfWidth / aspectRatio;
         
-        float cameraHalfWidth = cameraSize * aspectRatio;
+        // Zoom in 3x total - use 1/3 the size (makes everything appear 3x bigger)
+        float zoomedInSize = calculatedSize * 0.333f;
+        
+        cameraFollow.cameraSize = zoomedInSize;
+        mainCamera.orthographicSize = zoomedInSize;
+        
+        float cameraHalfWidth = zoomedInSize * aspectRatio;
+        
+        // Camera bounds: left edge at x=0, right edge at last block (x=levelLength-1)
+        float levelStartX = 0f * blockSize; // Level starts at x=0
+        float levelEndX = (levelLength - 1) * blockSize; // Last block
+        
         cameraFollow.useBounds = true;
-        cameraFollow.minX = 0f + cameraHalfWidth;
-        cameraFollow.maxX = levelLength * blockSize - cameraHalfWidth;
+        cameraFollow.minX = levelStartX + cameraHalfWidth; // Left edge of camera at x=0
+        cameraFollow.maxX = levelEndX - cameraHalfWidth; // Right edge of camera at last block
         cameraFollow.minY = -2f;
         cameraFollow.maxY = 10f;
-
+        
         // Position camera so player is exactly one block away from left edge
-        float playerStartX = 2f * blockSize;
-        float playerOffsetFromLeft = 1f * blockSize;
-        float leftEdgeX = playerStartX - playerOffsetFromLeft;
+        // Player spawns at x=1, we want left edge at x=0 (so player is 1 block from left)
+        float playerStartX = 1f * blockSize; // Player spawns at x=1 (1 block from left)
+        float leftEdgeX = 0f * blockSize; // Left edge should be at x=0
         float initialCameraX = leftEdgeX + cameraHalfWidth;
         
         if (playerInstance != null)
         {
             float playerX = playerInstance.transform.position.x;
-            leftEdgeX = playerX - playerOffsetFromLeft;
+            // Player at x=1, left edge at x=0, so camera center = 0 + cameraHalfWidth
+            leftEdgeX = 0f; // Always keep left edge at x=0
             initialCameraX = leftEdgeX + cameraHalfWidth;
-            initialCameraX = Mathf.Clamp(initialCameraX, cameraFollow.minX, cameraFollow.maxX);
+            
+            // Clamp to bounds to ensure full floor is visible
+            initialCameraX = Mathf.Clamp(
+                initialCameraX,
+                cameraFollow.minX,
+                cameraFollow.maxX
+            );
         }
         
         mainCamera.transform.position = new Vector3(initialCameraX, playerInstance != null ? playerInstance.transform.position.y : 2f, -10f);
@@ -313,6 +331,7 @@ public class Level7Generator : MonoBehaviour
         GameManager gameManager = FindFirstObjectByType<GameManager>();
         if (gameManager != null)
         {
+            gameManager.totalBoltsCollected = 0;
             gameManager.RefreshAllObjects();
             gameManager.UpdateTimeOfDay(gameManager.isDayTime);
         }
