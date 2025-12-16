@@ -41,23 +41,9 @@ public class FinishLine : MonoBehaviour
         spriteRenderer.color = finishLineColor;
         spriteRenderer.sortingOrder = 5; // Above ground, below UI
         
-        // Create invisible boundary wall on the right side to prevent passing through
-        CreateRightBoundary();
+        // No boundary wall - player can pass through finish line and will be stopped after 0.5 seconds
     }
     
-    /// <summary>
-    /// Create an invisible boundary wall on the right side to prevent player from passing through
-    /// </summary>
-    void CreateRightBoundary()
-    {
-        GameObject boundary = new GameObject("FinishLineBoundary");
-        boundary.transform.SetParent(transform);
-        boundary.transform.localPosition = new Vector3(0.3f, 0f, 0f); // Slightly to the right of finish line
-        
-        BoxCollider2D boundaryCollider = boundary.AddComponent<BoxCollider2D>();
-        boundaryCollider.isTrigger = false; // Solid collision
-        boundaryCollider.size = new Vector2(0.2f, 10f); // Tall and thin wall
-    }
     
     void Start()
     {
@@ -73,19 +59,20 @@ public class FinishLine : MonoBehaviour
     }
     
     /// <summary>
-    /// Create a finish line sprite - simple banner (horizontal strip)
+    /// Create a finish line sprite - vertical stripe with chess pattern
     /// </summary>
     Sprite CreateFinishLineSprite()
     {
-        int width = 32; // Wider banner
-        int height = 8; // Thin horizontal banner
+        int width = 8;   // Thin vertical stripe
+        int height = 64; // Tall vertical stripe
         Texture2D texture = new Texture2D(width, height);
         Color[] pixels = new Color[width * height];
         
-        Color bannerColor = finishLineColor;
+        Color stripeColor = finishLineColor;
         Color borderColor = new Color(finishLineColor.r * 0.7f, finishLineColor.g * 0.7f, finishLineColor.b * 0.7f);
+        Color altColor = Color.Lerp(stripeColor, Color.white, 0.1f);
         
-        // Draw simple horizontal banner
+        // Draw vertical stripe with chess pattern
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -99,14 +86,14 @@ public class FinishLine : MonoBehaviour
                 }
                 else
                 {
-                    // Banner with checkered pattern
+                    // Chess pattern (checkered)
                     if ((x + y) % 4 < 2)
                     {
-                        pixels[index] = bannerColor;
+                        pixels[index] = stripeColor;
                     }
                     else
                     {
-                        pixels[index] = Color.Lerp(bannerColor, Color.white, 0.1f);
+                        pixels[index] = altColor;
                     }
                 }
             }
@@ -223,8 +210,33 @@ public class FinishLine : MonoBehaviour
         // Change color to indicate completion
         spriteRenderer.color = Color.green;
         
-        // Invoke completion after delay
-        Invoke(nameof(HandleLevelCompletion), winDelay);
+        // Stop player movement after 0.5 seconds (allow them to pass finish line first)
+        Invoke(nameof(StopPlayerMovement), 0.5f);
+        
+        // Show winner screen after player stops (slightly after stopping)
+        Invoke(nameof(HandleLevelCompletion), 0.6f);
+    }
+    
+    /// <summary>
+    /// Stop player movement after passing finish line
+    /// </summary>
+    void StopPlayerMovement()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
+        {
+            PlayerController controller = player.GetComponent<PlayerController>();
+            if (controller != null)
+            {
+                controller.enabled = false; // Disable movement
+            }
+            
+            Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector2.zero; // Stop movement
+            }
+        }
     }
     
     /// <summary>

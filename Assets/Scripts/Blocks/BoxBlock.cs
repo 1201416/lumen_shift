@@ -3,6 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Box/Carton block - can be pushed, destroyed, or used as platform.
 /// May react to day/night cycle (e.g., becomes fragile at night).
+/// One-way platform: player can pass through from below, but lands on top.
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
 [RequireComponent(typeof(BoxCollider2D))]
@@ -76,37 +77,71 @@ public class BoxBlock : MonoBehaviour
             boxCollider.size = new Vector2(1f, 0.5f);
         }
         
+        // Add PlatformEffector2D to make platform passable from below
+        PlatformEffector2D platformEffector = GetComponent<PlatformEffector2D>();
+        if (platformEffector == null)
+        {
+            platformEffector = gameObject.AddComponent<PlatformEffector2D>();
+        }
+        // Configure as one-way platform: player can pass through from below, but lands on top
+        platformEffector.useOneWay = true;
+        platformEffector.useOneWayGrouping = true;
+        platformEffector.surfaceArc = 180f; // Top half of platform (180 degrees from top)
+        
         // Update visuals (this will set initial visibility)
         UpdateVisuals();
     }
     
     /// <summary>
-    /// Creates a default sprite for blocks - thinner (wider than tall) so player can jump onto them
+    /// Creates a default sprite for blocks - vertical stripe with chess pattern (like finish line)
     /// </summary>
     Sprite CreateDefaultSprite()
     {
-        // Create a thinner block: wider than tall (horizontal platform shape)
-        // This makes it easier to jump onto blocks
-        int width = 32;  // Wide
-        int height = 16; // Thin (half the width)
+        // Create a vertical stripe: tall and thin (vertical platform shape)
+        // Chess pattern like finish line
+        int width = 8;   // Thin (vertical stripe)
+        int height = 32; // Tall
         Texture2D texture = new Texture2D(width, height);
         Color[] pixels = new Color[width * height];
         
-        // Use box color
-        Color blockColor = dayColor;
-        for (int i = 0; i < pixels.Length; i++)
+        Color stripeColor = dayColor;
+        Color borderColor = new Color(stripeColor.r * 0.7f, stripeColor.g * 0.7f, stripeColor.b * 0.7f);
+        Color altColor = Color.Lerp(stripeColor, Color.white, 0.1f);
+        
+        // Draw vertical stripe with chess pattern
+        for (int y = 0; y < height; y++)
         {
-            pixels[i] = blockColor;
+            for (int x = 0; x < width; x++)
+            {
+                int index = y * width + x;
+                
+                // Border
+                if (y == 0 || y == height - 1 || x == 0 || x == width - 1)
+                {
+                    pixels[index] = borderColor;
+                }
+                else
+                {
+                    // Chess pattern (checkered)
+                    if ((x + y) % 4 < 2)
+                    {
+                        pixels[index] = stripeColor;
+                    }
+                    else
+                    {
+                        pixels[index] = altColor;
+                    }
+                }
+            }
         }
+        
         texture.SetPixels(pixels);
         texture.Apply();
-        
-        // Set texture filter mode to prevent gaps between sprites
-        texture.filterMode = FilterMode.Bilinear;
+        texture.filterMode = FilterMode.Point; // Pixel art style
         texture.wrapMode = TextureWrapMode.Clamp;
         
         // Create sprite from texture (1 unit = 32 pixels, so pixelsPerUnit = 32)
-        // Thinner blocks: width = 1 unit, height = 0.5 units
+        // Vertical stripe: width = 0.25 units, height = 1 unit
         return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 32f);
     }
 

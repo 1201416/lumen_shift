@@ -69,19 +69,24 @@ public class CameraFollow : MonoBehaviour
         
         // Get camera viewport bounds
         float cameraHalfWidth = cam.orthographicSize * cam.aspect;
+        float cameraHalfHeight = cam.orthographicSize;
         
         // Calculate desired camera X position
         float desiredX = targetX; // Default: keep player centered
+        float desiredY = targetY; // Default: keep player centered vertically
         
         // Apply bounds if enabled
         if (useBounds)
         {
             // Try to center the player
             desiredX = targetX;
+            desiredY = targetY;
             
             // Calculate camera edges if we center on player
             float leftEdgeIfCentered = desiredX - cameraHalfWidth;
             float rightEdgeIfCentered = desiredX + cameraHalfWidth;
+            float bottomEdgeIfCentered = desiredY - cameraHalfHeight;
+            float topEdgeIfCentered = desiredY + cameraHalfHeight;
             
             // Check if centering would show empty space on left
             if (leftEdgeIfCentered < minX)
@@ -97,18 +102,60 @@ public class CameraFollow : MonoBehaviour
                 desiredX = maxX - cameraHalfWidth;
             }
             
-            // Clamp to bounds (minX and maxX are camera center positions)
-            desiredX = Mathf.Clamp(desiredX, minX, maxX);
-            targetY = Mathf.Clamp(targetY, minY + cam.orthographicSize, maxY - cam.orthographicSize);
+            // Check if centering would show empty space below
+            if (bottomEdgeIfCentered < minY)
+            {
+                // Can't show bottom - align bottom edge to minY
+                desiredY = minY + cameraHalfHeight;
+            }
+            
+            // Check if centering would show empty space above
+            if (topEdgeIfCentered > maxY)
+            {
+                // Can't show top - align top edge to maxY
+                desiredY = maxY - cameraHalfHeight;
+            }
+            
+            // Clamp to bounds (minX/maxX and minY/maxY are camera center positions)
+            desiredX = Mathf.Clamp(desiredX, minX + cameraHalfWidth, maxX - cameraHalfWidth);
+            desiredY = Mathf.Clamp(desiredY, minY + cameraHalfHeight, maxY - cameraHalfHeight);
         }
         else
         {
             // Without bounds, keep player centered
             desiredX = targetX;
+            desiredY = targetY;
+        }
+        
+        // CRITICAL: Ensure player is always visible - add safety margin
+        // Calculate camera edges with current desired position
+        float cameraLeft = desiredX - cameraHalfWidth;
+        float cameraRight = desiredX + cameraHalfWidth;
+        float cameraBottom = desiredY - cameraHalfHeight;
+        float cameraTop = desiredY + cameraHalfHeight;
+        
+        // If player would be outside camera view, adjust camera to keep them visible
+        float margin = 0.5f; // Safety margin
+        if (targetX < cameraLeft + margin)
+        {
+            desiredX = targetX - cameraHalfWidth + margin;
+        }
+        else if (targetX > cameraRight - margin)
+        {
+            desiredX = targetX + cameraHalfWidth - margin;
+        }
+        
+        if (targetY < cameraBottom + margin)
+        {
+            desiredY = targetY - cameraHalfHeight + margin;
+        }
+        else if (targetY > cameraTop - margin)
+        {
+            desiredY = targetY + cameraHalfHeight - margin;
         }
         
         // Smoothly move camera
-        Vector3 targetPos = new Vector3(desiredX, targetY, transform.position.z);
+        Vector3 targetPos = new Vector3(desiredX, desiredY, transform.position.z);
         transform.position = Vector3.Lerp(transform.position, targetPos, followSpeed * Time.deltaTime);
         
         lastTargetX = targetX;

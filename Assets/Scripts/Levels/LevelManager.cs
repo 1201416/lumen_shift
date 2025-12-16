@@ -1,5 +1,8 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// Level Manager - handles progression between levels
@@ -19,6 +22,7 @@ public class LevelManager : MonoBehaviour
     public Level9Generator level9Generator;
     public Level10Generator level10Generator;
     public Level11Generator level11Generator;
+    public Level12Generator level12Generator;
     public Level13Generator level13Generator;
     public Level14Generator level14Generator;
     public Level15Generator level15Generator;
@@ -31,6 +35,9 @@ public class LevelManager : MonoBehaviour
     
     void Awake()
     {
+        // Ensure all generator GameObjects exist in the scene (so they persist after Unity crashes)
+        EnsureGeneratorsExist();
+        
         // Collect all level generators
         allGenerators = new MonoBehaviour[]
         {
@@ -70,6 +77,93 @@ public class LevelManager : MonoBehaviour
         
         // Detect current level from active generator
         DetectCurrentLevel();
+    }
+    
+    /// <summary>
+    /// Ensure all level generator GameObjects exist in the scene
+    /// This prevents them from disappearing after Unity crashes
+    /// </summary>
+    void EnsureGeneratorsExist()
+    {
+        // Create Level 1 generator if it doesn't exist
+        if (level1Generator == null)
+        {
+            GameObject go = GameObject.Find("FirstLevelGenerator");
+            if (go == null)
+            {
+                go = new GameObject("FirstLevelGenerator");
+                level1Generator = go.AddComponent<FirstLevelGenerator>();
+            }
+            else
+            {
+                level1Generator = go.GetComponent<FirstLevelGenerator>();
+                if (level1Generator == null)
+                {
+                    level1Generator = go.AddComponent<FirstLevelGenerator>();
+                }
+            }
+        }
+        
+        // Create Level 2-15 generators if they don't exist
+        if (level2Generator == null) level2Generator = FindOrCreateGenerator<Level2Generator>("Level2Generator");
+        if (level3Generator == null) level3Generator = FindOrCreateGenerator<Level3Generator>("Level3Generator");
+        if (level4Generator == null) level4Generator = FindOrCreateGenerator<Level4Generator>("Level4Generator");
+        if (level5Generator == null) level5Generator = FindOrCreateGenerator<Level5Generator>("Level5Generator");
+        if (level6Generator == null) level6Generator = FindOrCreateGenerator<Level6Generator>("Level6Generator");
+        if (level7Generator == null) level7Generator = FindOrCreateGenerator<Level7Generator>("Level7Generator");
+        if (level8Generator == null) level8Generator = FindOrCreateGenerator<Level8Generator>("Level8Generator");
+        if (level9Generator == null) level9Generator = FindOrCreateGenerator<Level9Generator>("Level9Generator");
+        if (level10Generator == null) level10Generator = FindOrCreateGenerator<Level10Generator>("Level10Generator");
+        if (level11Generator == null) level11Generator = FindOrCreateGenerator<Level11Generator>("Level11Generator");
+        if (level12Generator == null) level12Generator = FindOrCreateGenerator<Level12Generator>("Level12Generator");
+        if (level13Generator == null) level13Generator = FindOrCreateGenerator<Level13Generator>("Level13Generator");
+        if (level14Generator == null) level14Generator = FindOrCreateGenerator<Level14Generator>("Level14Generator");
+        if (level15Generator == null) level15Generator = FindOrCreateGenerator<Level15Generator>("Level15Generator");
+    }
+    
+    /// <summary>
+    /// Find an existing generator GameObject or create a new one
+    /// Marks it as a scene object so it persists after Unity crashes
+    /// </summary>
+    T FindOrCreateGenerator<T>(string gameObjectName) where T : MonoBehaviour
+    {
+        GameObject go = GameObject.Find(gameObjectName);
+        if (go == null)
+        {
+            go = new GameObject(gameObjectName);
+            T component = go.AddComponent<T>();
+            
+            // Mark as scene object so it persists in the scene file
+            #if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                // In editor mode, mark the scene as dirty so it saves
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
+                    UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene()
+                );
+            }
+            #endif
+            
+            return component;
+        }
+        else
+        {
+            T component = go.GetComponent<T>();
+            if (component == null)
+            {
+                component = go.AddComponent<T>();
+                
+                #if UNITY_EDITOR
+                if (!Application.isPlaying)
+                {
+                    UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
+                        UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene()
+                    );
+                }
+                #endif
+            }
+            return component;
+        }
     }
     
     void DetectCurrentLevel()
@@ -173,6 +267,10 @@ public class LevelManager : MonoBehaviour
             else if (levelNumber == 11 && level11Generator != null)
             {
                 level11Generator.GenerateLevel11();
+            }
+            else if (levelNumber == 12 && level12Generator != null)
+            {
+                level12Generator.GenerateLevel12();
             }
             else if (levelNumber == 13 && level13Generator != null)
             {

@@ -56,11 +56,18 @@ public class WinnerScreen : MonoBehaviour
     
     void Update()
     {
-        // Check for Enter/Space key to continue to next level (only when winner screen is showing)
+        // Check for keyboard shortcuts (only when winner screen is showing)
         if (isShowing && Keyboard.current != null)
         {
-            if (Keyboard.current.enterKey.wasPressedThisFrame || 
-                Keyboard.current.spaceKey.wasPressedThisFrame)
+            // R key for retry
+            if (Keyboard.current.rKey.wasPressedThisFrame)
+            {
+                RetryLevel();
+            }
+            // N key or Enter/Space for next level
+            else if (Keyboard.current.nKey.wasPressedThisFrame ||
+                     Keyboard.current.enterKey.wasPressedThisFrame || 
+                     Keyboard.current.spaceKey.wasPressedThisFrame)
             {
                 GoToNextLevel();
             }
@@ -72,6 +79,14 @@ public class WinnerScreen : MonoBehaviour
     /// </summary>
     void DetectCurrentLevel()
     {
+        // Try to detect from LevelManager first (most reliable)
+        LevelManager levelManager = FindFirstObjectByType<LevelManager>();
+        if (levelManager != null)
+        {
+            currentLevelNumber = levelManager.currentLevel;
+            return;
+        }
+        
         // Try to detect from level generators
         if (FindFirstObjectByType<FirstLevelGenerator>() != null)
         {
@@ -92,6 +107,46 @@ public class WinnerScreen : MonoBehaviour
         else if (FindFirstObjectByType<Level5Generator>() != null)
         {
             currentLevelNumber = 5;
+        }
+        else if (FindFirstObjectByType<Level6Generator>() != null)
+        {
+            currentLevelNumber = 6;
+        }
+        else if (FindFirstObjectByType<Level7Generator>() != null)
+        {
+            currentLevelNumber = 7;
+        }
+        else if (FindFirstObjectByType<Level8Generator>() != null)
+        {
+            currentLevelNumber = 8;
+        }
+        else if (FindFirstObjectByType<Level9Generator>() != null)
+        {
+            currentLevelNumber = 9;
+        }
+        else if (FindFirstObjectByType<Level10Generator>() != null)
+        {
+            currentLevelNumber = 10;
+        }
+        else if (FindFirstObjectByType<Level11Generator>() != null)
+        {
+            currentLevelNumber = 11;
+        }
+        else if (FindFirstObjectByType<Level12Generator>() != null)
+        {
+            currentLevelNumber = 12;
+        }
+        else if (FindFirstObjectByType<Level13Generator>() != null)
+        {
+            currentLevelNumber = 13;
+        }
+        else if (FindFirstObjectByType<Level14Generator>() != null)
+        {
+            currentLevelNumber = 14;
+        }
+        else if (FindFirstObjectByType<Level15Generator>() != null)
+        {
+            currentLevelNumber = 15;
         }
         else
         {
@@ -186,14 +241,15 @@ public class WinnerScreen : MonoBehaviour
         retryBtnTextRect.sizeDelta = Vector2.zero;
         
         retryButtonText = retryBtnTextObj.AddComponent<Text>();
-        retryButtonText.text = retryButtonTextStr;
+        retryButtonText.text = "(R) " + retryButtonTextStr; // Add "(R)" prefix
         retryButtonText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         retryButtonText.fontSize = 36;
         retryButtonText.color = Color.white;
         retryButtonText.alignment = TextAnchor.MiddleCenter;
         retryButtonText.fontStyle = FontStyle.Bold;
         
-        retryBtnTextObj.AddComponent<CanvasGroup>().interactable = false;
+        // Enable retry button
+        retryButton.interactable = true;
         
         // Create Next Level button
         GameObject nextLevelButtonObj = new GameObject("NextLevelButton");
@@ -252,7 +308,7 @@ public class WinnerScreen : MonoBehaviour
         {
             if (HasNextLevel())
             {
-                nextLevelButtonText.text = $"Level {currentLevelNumber + 1}";
+                nextLevelButtonText.text = $"Level {currentLevelNumber + 1} (N)"; // Add "(N)" suffix
                 // Enable button
                 if (nextLevelButton != null)
                 {
@@ -267,7 +323,7 @@ public class WinnerScreen : MonoBehaviour
             else
             {
                 // Final level - show "Play Again" instead
-                nextLevelButtonText.text = "Play Again";
+                nextLevelButtonText.text = "Play Again (N)"; // Add "(N)" suffix
                 // Keep button enabled but change color
                 if (nextLevelButton != null)
                 {
@@ -287,7 +343,7 @@ public class WinnerScreen : MonoBehaviour
     /// </summary>
     bool HasNextLevel()
     {
-        return currentLevelNumber < 5; // Max 5 levels
+        return currentLevelNumber < 15; // Max 15 levels
     }
     
     /// <summary>
@@ -305,7 +361,7 @@ public class WinnerScreen : MonoBehaviour
         // Update winner message with level number
         if (winnerMessageText != null)
         {
-            if (currentLevelNumber == 5)
+            if (currentLevelNumber == 15)
             {
                 // Special message for final level
                 winnerMessageText.text = "FINAL LEVEL COMPLETE!\n\nCongratulations!\nYou've mastered Lumen-Shift!";
@@ -323,7 +379,8 @@ public class WinnerScreen : MonoBehaviour
             winnerCanvas.gameObject.SetActive(true);
         }
         
-        // Disable player movement
+        // Player movement is already stopped by FinishLine after 0.5 seconds
+        // Just ensure it's still disabled
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
@@ -340,8 +397,8 @@ public class WinnerScreen : MonoBehaviour
             }
         }
         
-        // Pause time (optional - can be removed if you want animations to continue)
-        Time.timeScale = 0f;
+        // Don't pause time - let animations continue
+        // Time.timeScale = 0f; // Removed - keep time running
     }
     
     /// <summary>
@@ -439,7 +496,7 @@ public class WinnerScreen : MonoBehaviour
     /// </summary>
     public void SetCurrentLevel(int levelNumber)
     {
-        currentLevelNumber = Mathf.Clamp(levelNumber, 1, 5);
+        currentLevelNumber = Mathf.Clamp(levelNumber, 1, 15);
         UpdateNextLevelButtonText();
     }
 }

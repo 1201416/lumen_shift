@@ -11,7 +11,7 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
     public float moveSpeed = 5f;
-    [Tooltip("Jump force - automatically calculated as 6x character height")]
+    [Tooltip("Jump force - automatically calculated as 9x character height")]
     public float jumpForce = 0f; // Will be calculated based on character height
     [Tooltip("Movement speed multiplier when in air (0.25 = 25% speed, 75% slower)")]
     public float airMovementMultiplier = 0.25f; // 25% speed in air (75% slower)
@@ -114,7 +114,7 @@ public class PlayerController : MonoBehaviour
     }
     
     /// <summary>
-    /// Calculate jump force to be 6x character height (3x bigger than previous 2x)
+    /// Calculate jump force to be 9x character height (1.5x bigger than previous 6x)
     /// </summary>
     void CalculateJumpForce()
     {
@@ -124,10 +124,10 @@ public class PlayerController : MonoBehaviour
         if (playerCollider != null && rb != null)
         {
             float characterHeight = playerCollider.bounds.size.y;
-            // Jump height = 6x character height (3x bigger than previous 2x)
+            // Jump height = 9x character height (1.5x bigger than previous 6x)
             // Physics formula: v = sqrt(2 * g * h)
             // With gravityScale = 3f and Physics2D.gravity = -9.81
-            float targetHeight = characterHeight * 6f;
+            float targetHeight = characterHeight * 9f;
             float effectiveGravity = rb.gravityScale * Mathf.Abs(Physics2D.gravity.y);
             jumpForce = Mathf.Sqrt(2f * effectiveGravity * targetHeight);
             
@@ -137,7 +137,7 @@ public class PlayerController : MonoBehaviour
         {
             // Fallback: use default based on typical character height (0.5 units)
             float defaultHeight = 0.5f;
-            float targetHeight = defaultHeight * 6f;
+            float targetHeight = defaultHeight * 9f;
             float effectiveGravity = 3f * 9.81f;
             jumpForce = Mathf.Sqrt(2f * effectiveGravity * targetHeight);
         }
@@ -597,11 +597,18 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Check if player is currently underneath any block (using physics overlap)
     /// More aggressive detection to prevent teleportation
+    /// BUT: Allow passing through platforms when moving upward (one-way platforms)
     /// </summary>
     bool IsUnderneathBlock()
     {
         Collider2D playerCollider = GetComponent<Collider2D>();
         if (playerCollider == null) return false;
+        
+        // If player is moving upward fast enough, allow passing through platforms
+        if (rb.linearVelocity.y > 0.5f)
+        {
+            return false; // Don't prevent upward movement through platforms
+        }
         
         float playerTop = playerCollider.bounds.max.y;
         float playerHalfHeight = playerCollider.bounds.size.y * 0.5f;
@@ -616,8 +623,16 @@ public class PlayerController : MonoBehaviour
         if (hit.collider != null)
         {
             // Check if it's a block
-            if (hit.collider.GetComponent<BoxBlock>() != null)
+            BoxBlock boxBlock = hit.collider.GetComponent<BoxBlock>();
+            if (boxBlock != null)
             {
+                // Check if it's a one-way platform - if so, allow passing through when moving up
+                PlatformEffector2D platformEffector = hit.collider.GetComponent<PlatformEffector2D>();
+                if (platformEffector != null && platformEffector.useOneWay && rb.linearVelocity.y > 0.3f)
+                {
+                    return false; // Allow passing through
+                }
+                
                 // Verify player is actually below the block
                 float blockBottom = hit.collider.bounds.min.y;
                 if (playerTop <= blockBottom + 0.2f) // Within 0.2 units of block bottom
@@ -633,6 +648,13 @@ public class PlayerController : MonoBehaviour
         Collider2D overlap = Physics2D.OverlapBox(checkCenter, checkSize, 0f);
         if (overlap != null && overlap.GetComponent<BoxBlock>() != null && overlap != playerCollider)
         {
+            // Check if it's a one-way platform
+            PlatformEffector2D platformEffector = overlap.GetComponent<PlatformEffector2D>();
+            if (platformEffector != null && platformEffector.useOneWay && rb.linearVelocity.y > 0.3f)
+            {
+                return false; // Allow passing through
+            }
+            
             float blockBottom = overlap.bounds.min.y;
             if (playerTop <= blockBottom + 0.2f)
             {
@@ -648,6 +670,13 @@ public class PlayerController : MonoBehaviour
             hit = Physics2D.Raycast(rayOrigin, Vector2.up, checkDistance);
             if (hit.collider != null && hit.collider.GetComponent<BoxBlock>() != null)
             {
+                // Check if it's a one-way platform
+                PlatformEffector2D platformEffector = hit.collider.GetComponent<PlatformEffector2D>();
+                if (platformEffector != null && platformEffector.useOneWay && rb.linearVelocity.y > 0.3f)
+                {
+                    continue; // Allow passing through, check next raycast
+                }
+                
                 float blockBottom = hit.collider.bounds.min.y;
                 if (playerTop <= blockBottom + 0.2f)
                 {
@@ -662,13 +691,27 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Check if player is hitting a block from below (head hitting bottom of block)
     /// More aggressive detection to prevent teleportation
+    /// BUT: Allow passing through platforms when moving upward (one-way platforms)
     /// </summary>
     bool IsHittingBlockFromBelow(Collision2D collision)
     {
         // Only check for blocks (not floor or boundaries)
-        if (collision.gameObject.GetComponent<BoxBlock>() == null)
+        BoxBlock boxBlock = collision.gameObject.GetComponent<BoxBlock>();
+        if (boxBlock == null)
         {
             return false;
+        }
+        
+        // Check if this block has a PlatformEffector2D (one-way platform)
+        PlatformEffector2D platformEffector = collision.gameObject.GetComponent<PlatformEffector2D>();
+        if (platformEffector != null && platformEffector.useOneWay)
+        {
+            // For one-way platforms, allow player to pass through when moving upward
+            // Only prevent collision if player is moving upward fast enough
+            if (rb.linearVelocity.y > 0.5f) // Moving upward - allow passing through
+            {
+                return false; // Don't prevent upward movement through platform
+            }
         }
         
         // Get block bounds
@@ -691,9 +734,6 @@ public class PlayerController : MonoBehaviour
         
         bool playerIsBelowBlock = playerCenterY < blockCenterY - 0.1f; // More strict: must be clearly below
         bool playerTopTouchingBlockBottom = playerTop >= blockBottom - 0.05f && playerTop <= blockBottom + 0.15f; // Tighter tolerance
-        
-        // Also check if player is moving upward and would collide
-        bool movingUpward = rb.linearVelocity.y > 0.1f;
         
         // If player is below block and top is near block bottom, it's a head collision
         if (playerIsBelowBlock && playerTopTouchingBlockBottom)

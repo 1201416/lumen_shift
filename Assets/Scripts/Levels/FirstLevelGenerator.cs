@@ -131,33 +131,33 @@ public class FirstLevelGenerator : MonoBehaviour
     /// </summary>
     void CreateFixedTutorialLevel()
     {
-        // Ground floor: 20 blocks of grass (simpler)
-        for (int i = 0; i < 20; i++)
+        // Ground floor: 20 blocks + extra blocks to ensure floor extends past finish line
+        for (int i = 0; i < 25; i++)
         {
             CreateFloorBlock(new Vector3(i * blockSize, 0f, 0f), FloorBlock.FloorType.Grass);
         }
         
-        // Platform 1: Small platform at x=8, height 2 blocks (for first bolt)
-        CreateBoxBlock(new Vector3(8f * blockSize, 2f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(8.5f * blockSize, 2f, 0f), visibleDuringDay: false);
+        // Platform 1: Small platform at x=8, height 0.5 blocks (lowered for reachability)
+        CreateBoxBlock(new Vector3(8f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(8.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 2: Small platform at x=12, height 1.5 blocks (for monster)
-        CreateBoxBlock(new Vector3(12f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(12.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        // Platform 2: Small platform at x=12, height 0.5 blocks (lowered for reachability)
+        CreateBoxBlock(new Vector3(12f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 3: Small platform at x=16, height 2 blocks (for second bolt, near finish)
-        CreateBoxBlock(new Vector3(16f * blockSize, 2f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(16.5f * blockSize, 2f, 0f), visibleDuringDay: false);
+        // Platform 3: Small platform at x=16, height 0.5 blocks (lowered for reachability, near finish)
+        CreateBoxBlock(new Vector3(16f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(16.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
         // Place 1 monster on ground at x=12 (simple tutorial - shows player can die)
         CreateMonster(new Vector3(12.25f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
         
         // Place 2 lightning bolts (above platforms, reachable):
         // Bolt 1: Above platform 1
-        CreateLightningBolt(new Vector3(8.25f * blockSize, 2f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(8.25f * blockSize, 0.5f + 1.5f, 0f));
         
         // Bolt 2: Above platform 3 (near finish line)
-        CreateLightningBolt(new Vector3(16.25f * blockSize, 2f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(16.25f * blockSize, 0.5f + 1.5f, 0f));
         
         // Place finish line at the end (after 20 blocks)
         PlaceFinishLine();
@@ -440,22 +440,23 @@ public class FirstLevelGenerator : MonoBehaviour
             cameraFollow.cameraSize = zoomedInSize;
             mainCamera.orthographicSize = zoomedInSize;
             
-            // Calculate camera bounds - for fixed tutorial level: level goes from x=0 to x=30
-            float levelStartX = 0f; // Level starts at x=0
-            float levelEndX = 30f * blockSize; // Level ends at x=30
+            // Calculate camera bounds - for fixed tutorial level: level goes from x=0 to x=20
+            // Player starts at x=2, so we don't want to show empty space to the left
+            float levelStartX = 1f * blockSize; // Start camera bounds at x=1 (slightly before player start)
+            float levelEndX = 20f * blockSize; // Level ends at x=20 (finish line position)
             float cameraHalfWidth = zoomedInSize * aspectRatio;
             
             // Set camera bounds to prevent showing empty space
             // Left bound: camera center can't go below levelStartX + cameraHalfWidth (so left edge is at levelStartX)
             // Right bound: camera center can't go above levelEndX - cameraHalfWidth (so right edge is at levelEndX)
             cameraFollow.useBounds = true;
-            cameraFollow.minX = levelStartX + cameraHalfWidth; // Left edge of camera at level start
+            cameraFollow.minX = levelStartX + cameraHalfWidth; // Left edge of camera at levelStartX (x=1)
             cameraFollow.maxX = levelEndX - cameraHalfWidth; // Right edge of camera at level end
             cameraFollow.minY = -2f;
             cameraFollow.maxY = 10f;
             
             // Set initial camera position to player start position (centered on player)
-            float playerStartX = 1f * blockSize; // Player spawns at x=1
+            float playerStartX = 2f * blockSize; // Player spawns at x=2
             float initialCameraX = playerStartX;
             if (playerInstance != null)
             {
@@ -717,16 +718,9 @@ public class FirstLevelGenerator : MonoBehaviour
         leftCollider.size = new Vector2(wallThickness, wallHeight);
         leftCollider.isTrigger = false;
         
-        // Right boundary wall (invisible, blocks player from going right past level end)
-        GameObject rightWall = new GameObject("RightBoundary");
-        rightWall.transform.position = new Vector3(levelEndX + wallThickness * 0.5f, wallHeight * 0.5f, 0f);
-        rightWall.transform.SetParent(blocksParent);
+        // No right boundary wall - player can pass finish line and will be stopped by finish line logic
         
-        BoxCollider2D rightCollider = rightWall.AddComponent<BoxCollider2D>();
-        rightCollider.size = new Vector2(wallThickness, wallHeight);
-        rightCollider.isTrigger = false;
-        
-        Debug.Log($"Created boundary walls: Left at x={levelStartX}, Right at x={levelEndX}");
+        Debug.Log($"Created boundary wall: Left at x={levelStartX}");
     }
 
     /// <summary>

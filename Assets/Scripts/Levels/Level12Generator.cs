@@ -62,7 +62,7 @@ public class Level12Generator : MonoBehaviour
 
         CreateBoundaryWalls();
         CreateFixedLevel();
-        CreatePlayer(new Vector3(1f * blockSize, 1.5f, 0f));
+        CreatePlayer(new Vector3(2f * blockSize, 1f, 0f));
         SetupCamera();
         EnsureGameManagerExists();
         SetupInputSystemFixer();
@@ -86,39 +86,39 @@ public class Level12Generator : MonoBehaviour
 
     void CreateFixedLevel()
     {
-        // Ground floor: 50 blocks
-        for (int i = 0; i < levelLength; i++)
+        // Ground floor: extend past finish line to ensure no gaps
+        for (int i = 0; i < levelLength + 5; i++)
         {
             CreateFloorBlock(new Vector3(i * blockSize, 0f, 0f), FloorBlock.FloorType.Grass);
         }
         
-        // Platform 1: Small platform at x=6, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(6f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(6.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 1: Small platform at x=6, height 0.5 blocks (lowered)
+        CreateBoxBlock(new Vector3(6f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(6.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 2: Small platform at x=12, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(12f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(12.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 2: Small platform at x=12, height 0.5 blocks (lowered)
+        CreateBoxBlock(new Vector3(12f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 3: Small platform at x=18, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(18f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(18.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 3: Small platform at x=18, height 0.5 blocks (lowered)
+        CreateBoxBlock(new Vector3(18f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(18.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 4: Small platform at x=24, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(24f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(24.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 4: Small platform at x=24, height 0.5 blocks (lowered)
+        CreateBoxBlock(new Vector3(24f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(24.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 5: Small platform at x=30, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(30f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(30.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 5: Small platform at x=30, height 0.5 blocks (lowered)
+        CreateBoxBlock(new Vector3(30f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(30.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 6: Small platform at x=36, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(36f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(36.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 6: Small platform at x=36, height 0.5 blocks (lowered)
+        CreateBoxBlock(new Vector3(36f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(36.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 7: Small platform at x=42, height 1 block (cut by half, near finish)
-        CreateBoxBlock(new Vector3(42f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(42.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 7: Small platform at x=42, height 0.5 blocks (lowered, near finish)
+        CreateBoxBlock(new Vector3(42f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(42.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
         // Place monsters (Level 11-12: 3-4 monsters for difficulty)
         CreateMonster(new Vector3(15f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
@@ -126,13 +126,13 @@ public class Level12Generator : MonoBehaviour
         CreateMonster(new Vector3(35f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
         
         // Place 7 lightning bolts (Level 11-12: 7 bolts)
-        CreateLightningBolt(new Vector3(6.25f * blockSize, 1f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(12.25f * blockSize, 1f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(18.25f * blockSize, 1f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(24.25f * blockSize, 1f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(30.25f * blockSize, 1f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(36.25f * blockSize, 1f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(42.25f * blockSize, 1f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(6.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(12.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(18.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(24.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(30.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(36.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(42.25f * blockSize, 0.5f + 1.5f, 0f));
         
         // Place finish line at the end
         CreateFinishLine(new Vector3(levelLength * blockSize, 1.5f, 0f));
@@ -143,6 +143,7 @@ public class Level12Generator : MonoBehaviour
         float wallHeight = 20f;
         float wallThickness = 0.5f;
         
+        // Only create left boundary wall to prevent going backwards
         GameObject leftWall = new GameObject("LeftBoundary");
         leftWall.transform.position = new Vector3(-wallThickness * 0.5f, wallHeight * 0.5f, 0f);
         leftWall.transform.SetParent(blocksParent);
@@ -150,13 +151,7 @@ public class Level12Generator : MonoBehaviour
         leftCollider.size = new Vector2(wallThickness, wallHeight);
         leftCollider.isTrigger = false;
         
-        GameObject rightWall = new GameObject("RightBoundary");
-        float rightWallX = levelLength * blockSize + wallThickness * 0.5f;
-        rightWall.transform.position = new Vector3(rightWallX, wallHeight * 0.5f, 0f);
-        rightWall.transform.SetParent(blocksParent);
-        BoxCollider2D rightCollider = rightWall.AddComponent<BoxCollider2D>();
-        rightCollider.size = new Vector2(wallThickness, wallHeight);
-        rightCollider.isTrigger = false;
+        // No right boundary wall - player can pass finish line
     }
 
     void SetupWinnerScreen()
@@ -233,7 +228,7 @@ public class Level12Generator : MonoBehaviour
         cameraFollow.minY = -2f;
         cameraFollow.maxY = 10f;
         
-        mainCamera.transform.position = new Vector3(1f, 2f, -10f);
+        mainCamera.transform.position = new Vector3(2f, 2f, -10f);
     }
 
     void EnsureGameManagerExists()

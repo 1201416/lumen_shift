@@ -94,23 +94,23 @@ public class Level2Generator : MonoBehaviour
         }
         
         // Platform 1: Small platform at x=6, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(6f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(6.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(6f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(6.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 2: Small platform at x=12, height 1 block (cut by half)
-        CreateBoxBlock(new Vector3(12f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(12.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 2: Small platform at x=12, height 0.5 blocks (lowered)
+        CreateBoxBlock(new Vector3(12f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
-        // Platform 3: Small platform at x=18, height 1 block (cut by half, near finish)
-        CreateBoxBlock(new Vector3(18f * blockSize, 1f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(18.5f * blockSize, 1f, 0f), visibleDuringDay: false);
+        // Platform 3: Small platform at x=18, height 0.5 blocks (lowered, near finish)
+        CreateBoxBlock(new Vector3(18f * blockSize, 0.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(18.5f * blockSize, 0.5f, 0f), visibleDuringDay: false);
         
         // Place 1 monster on ground
         CreateMonster(new Vector3(10f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
         
         // Place 2 lightning bolts (Level 1-2: 2 bolts)
-        CreateLightningBolt(new Vector3(6.25f * blockSize, 1f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(18.25f * blockSize, 1f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(6.25f * blockSize, 0.5f + 1.5f, 0f));
+        CreateLightningBolt(new Vector3(18.25f * blockSize, 0.5f + 1.5f, 0f));
         
         // Place finish line at the end
         CreateFinishLine(new Vector3(levelLength * blockSize, 1.5f, 0f));
@@ -121,6 +121,8 @@ public class Level2Generator : MonoBehaviour
         float wallHeight = 20f;
         float wallThickness = 0.5f;
         
+        // Only create left boundary wall to prevent going backwards
+        // Right side is open - player can pass finish line and will be stopped by finish line logic
         GameObject leftWall = new GameObject("LeftBoundary");
         leftWall.transform.position = new Vector3(-wallThickness * 0.5f, wallHeight * 0.5f, 0f);
         leftWall.transform.SetParent(blocksParent);
@@ -128,13 +130,7 @@ public class Level2Generator : MonoBehaviour
         leftCollider.size = new Vector2(wallThickness, wallHeight);
         leftCollider.isTrigger = false;
         
-        GameObject rightWall = new GameObject("RightBoundary");
-        float rightWallX = levelLength * blockSize + wallThickness * 0.5f;
-        rightWall.transform.position = new Vector3(rightWallX, wallHeight * 0.5f, 0f);
-        rightWall.transform.SetParent(blocksParent);
-        BoxCollider2D rightCollider = rightWall.AddComponent<BoxCollider2D>();
-        rightCollider.size = new Vector2(wallThickness, wallHeight);
-        rightCollider.isTrigger = false;
+        // No right boundary wall - player can pass finish line
     }
 
     void SetupWinnerScreen()
