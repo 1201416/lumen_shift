@@ -167,6 +167,13 @@ public class Level2Generator : MonoBehaviour
         {
             playerInstance = Instantiate(playerPrefab, position, Quaternion.identity);
             playerInstance.name = "Player";
+            
+            // Ensure PlayerController is enabled
+            PlayerController controller = playerInstance.GetComponent<PlayerController>();
+            if (controller != null)
+            {
+                controller.enabled = true;
+            }
         }
         else
         {
@@ -175,6 +182,20 @@ public class Level2Generator : MonoBehaviour
             {
                 playerInstance = existingPlayer;
                 playerInstance.transform.position = position;
+                
+                // Re-enable PlayerController if it was disabled (e.g., from level completion)
+                PlayerController controller = playerInstance.GetComponent<PlayerController>();
+                if (controller != null)
+                {
+                    controller.enabled = true;
+                }
+                
+                // Reset velocity
+                Rigidbody2D rb = playerInstance.GetComponent<Rigidbody2D>();
+                if (rb != null)
+                {
+                    rb.linearVelocity = Vector2.zero;
+                }
             }
         }
     }

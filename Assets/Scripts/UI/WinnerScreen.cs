@@ -461,12 +461,38 @@ public class WinnerScreen : MonoBehaviour
             
             Debug.Log($"WinnerScreen: Going to next level. Current: {currentLevelNumber}, Next: {currentLevelNumber + 1}");
             levelManager.LoadNextLevel();
+            
+            // Enable player movement after level loads (with a small delay to ensure level generation completes)
+            Invoke(nameof(EnablePlayerMovement), 0.1f);
             return;
         }
-        
+
         // If LevelManager doesn't exist, log error and reload current scene
         Debug.LogError("LevelManager not found! Cannot load next level. Please ensure LevelManager exists in the scene.");
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+    
+    /// <summary>
+    /// Enable player movement (called after level loads)
+    /// </summary>
+    void EnablePlayerMovement()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
+        {
+            PlayerController controller = player.GetComponent<PlayerController>();
+            if (controller != null)
+            {
+                controller.enabled = true;
+            }
+            
+            // Reset velocity
+            Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector2.zero;
+            }
+        }
     }
     
     /// <summary>

@@ -289,10 +289,36 @@ public class LevelManager : MonoBehaviour
             }
             
             Debug.Log($"Loaded Level {levelNumber}");
+            
+            // Enable player movement after level generation completes
+            EnablePlayerMovement();
         }
         else
         {
             Debug.LogWarning($"Level {levelNumber} generator not found!");
+        }
+    }
+    
+    /// <summary>
+    /// Enable player movement (called after level loads)
+    /// </summary>
+    void EnablePlayerMovement()
+    {
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
+        {
+            PlayerController controller = player.GetComponent<PlayerController>();
+            if (controller != null)
+            {
+                controller.enabled = true;
+            }
+            
+            // Reset velocity
+            Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector2.zero;
+            }
         }
     }
     

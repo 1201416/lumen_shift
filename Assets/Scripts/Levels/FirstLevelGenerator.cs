@@ -1598,6 +1598,13 @@ public class FirstLevelGenerator : MonoBehaviour
             // Instantiate player from prefab
             playerInstance = Instantiate(playerPrefab, position, Quaternion.identity);
             playerInstance.tag = "Player";
+            
+            // Ensure PlayerController is enabled
+            PlayerController controller = playerInstance.GetComponent<PlayerController>();
+            if (controller != null)
+            {
+                controller.enabled = true;
+            }
             return;
         }
         
@@ -1607,6 +1614,20 @@ public class FirstLevelGenerator : MonoBehaviour
         {
             playerInstance = existingPlayerObj;
             playerInstance.transform.position = position;
+            
+            // Re-enable PlayerController if it was disabled (e.g., from level completion)
+            PlayerController controller = playerInstance.GetComponent<PlayerController>();
+            if (controller != null)
+            {
+                controller.enabled = true;
+            }
+            
+            // Reset velocity
+            Rigidbody2D rb = playerInstance.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector2.zero;
+            }
             
             // Ensure existing player has the correct sprite
             SpriteRenderer existingSr = playerInstance.GetComponent<SpriteRenderer>();
