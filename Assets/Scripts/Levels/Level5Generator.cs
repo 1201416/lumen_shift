@@ -83,29 +83,47 @@ public class Level5Generator : MonoBehaviour
 
     void CreateFixedLevel()
     {
-        // Ground floor: extend past finish line to ensure no gaps
+        // Ground floor
         for (int i = 0; i < levelLength + 5; i++)
         {
             CreateFloorBlock(new Vector3(i * blockSize, 0f, 0f), FloorBlock.FloorType.Grass);
         }
-        
-        CreateBoxBlock(new Vector3(7f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(7.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(13f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(13.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(19f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(19.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(25f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(25.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        
-        CreateMonster(new Vector3(10f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
-        CreateMonster(new Vector3(22f * blockSize, 0.5f, 0f), Monster.MonsterType.FlyingEye);
-        
-        CreateLightningBolt(new Vector3(7.25f * blockSize, 1.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(13.25f * blockSize, 1.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(19.25f * blockSize, 1.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(25.25f * blockSize, 1.5f + 1.5f, 0f));
-        
+
+        // Zigzag pattern - up and down
+        CreateBoxBlock(new Vector3(5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(6f * blockSize, 3f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(7f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(9f * blockSize, 3f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(10f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12f * blockSize, 3f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(13f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(14f * blockSize, 6f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(16f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(17f * blockSize, 3f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(19f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(20f * blockSize, 6f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(21f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(23f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(23.5f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(24f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+
+        // Place monsters on platforms:
+        CreateMonster(new Vector3(6.5f * blockSize, 3f + 0.5f, 0f), Monster.MonsterType.Mushroom);
+        CreateMonster(new Vector3(10f * blockSize, 1.5f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(13.5f * blockSize, 4.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
+        CreateMonster(new Vector3(20.5f * blockSize, 6f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
+
+        // Place 4 lightning bolts - ONLY reachable by climbing/platforming:
+        // Bolt 1: Requires platforming
+        CreateLightningBolt(new Vector3(7f * blockSize, 6.0f, 0f));
+        // Bolt 2: Requires platforming
+        CreateLightningBolt(new Vector3(14f * blockSize, 7.5f, 0f));
+        // Bolt 3: Requires platforming
+        CreateLightningBolt(new Vector3(21f * blockSize, 9.0f, 0f));
+        // Bolt 4: Requires platforming
+        CreateLightningBolt(new Vector3(24f * blockSize, 9.0f, 0f));
+
+        // Place finish line at the end
         CreateFinishLine(new Vector3((levelLength - 5) * blockSize, 1.5f, 0f));
     }
 

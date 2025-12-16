@@ -83,36 +83,51 @@ public class Level9Generator : MonoBehaviour
 
     void CreateFixedLevel()
     {
-        // Ground floor: extend past finish line to ensure no gaps
+        // Ground floor
         for (int i = 0; i < levelLength + 5; i++)
         {
             CreateFloorBlock(new Vector3(i * blockSize, 0f, 0f), FloorBlock.FloorType.Grass);
         }
-        
+
+        // Mega jump challenge - big gaps
+        CreateBoxBlock(new Vector3(5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(5.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(6f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(6.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(10f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(10.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(14f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(14.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(18f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(18.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(22f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(22.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(26f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(26.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
-        
-        CreateMonster(new Vector3(8f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
-        CreateMonster(new Vector3(12f * blockSize, 0.5f, 0f), Monster.MonsterType.FlyingEye);
-        CreateMonster(new Vector3(20f * blockSize, 0.5f, 0f), Monster.MonsterType.Mushroom);
-        
-        CreateLightningBolt(new Vector3(6.25f * blockSize, 1.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(10.25f * blockSize, 1.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(14.25f * blockSize, 1.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(18.25f * blockSize, 1.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(22.25f * blockSize, 1.5f + 1.5f, 0f));
-        CreateLightningBolt(new Vector3(26.25f * blockSize, 1.5f + 1.5f, 0f));
-        
+        CreateBoxBlock(new Vector3(12f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12.5f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(13f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(13.5f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(19f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(19.5f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(20f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(20.5f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(26f * blockSize, 10.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(26.5f * blockSize, 10.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(27f * blockSize, 10.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(27.5f * blockSize, 10.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(32f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(32.5f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(33f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+
+        // Place monsters on platforms:
+        CreateMonster(new Vector3(6f * blockSize, 1.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
+        CreateMonster(new Vector3(13f * blockSize, 4.5f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(20f * blockSize, 7.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
+        CreateMonster(new Vector3(27f * blockSize, 10.5f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(33f * blockSize, 7.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
+
+        // Place 4 lightning bolts - ONLY reachable by climbing/platforming:
+        // Bolt 1: Requires platforming
+        CreateLightningBolt(new Vector3(13f * blockSize, 6.0f, 0f));
+        // Bolt 2: Requires platforming
+        CreateLightningBolt(new Vector3(20f * blockSize, 9.0f, 0f));
+        // Bolt 3: Requires platforming
+        CreateLightningBolt(new Vector3(27f * blockSize, 12.0f, 0f));
+        // Bolt 4: Requires platforming
+        CreateLightningBolt(new Vector3(33f * blockSize, 9.0f, 0f));
+
+        // Place finish line at the end
         CreateFinishLine(new Vector3((levelLength - 5) * blockSize, 1.5f, 0f));
     }
 
