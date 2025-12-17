@@ -99,27 +99,36 @@ public class Level3Generator : MonoBehaviour
         CreateBoxBlock(new Vector3(5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(5.5f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(6f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(7f * blockSize, 2f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(8f * blockSize, 2.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(9f * blockSize, 3f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(9.5f * blockSize, 3f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(10f * blockSize, 3f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(11f * blockSize, 3.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(12f * blockSize, 4f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(13f * blockSize, 4.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(13.5f * blockSize, 4.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(14f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(14f * blockSize, 5.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(15f * blockSize, 5.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(16f * blockSize, 5.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(17f * blockSize, 6f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(17.5f * blockSize, 6f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(18f * blockSize, 6f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(18.5f * blockSize, 6.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(19.5f * blockSize, 6f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(20f * blockSize, 7f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(21f * blockSize, 7.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(21.5f * blockSize, 7.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(22f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(23f * blockSize, 6f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(24f * blockSize, 6f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(25f * blockSize, 6f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(25.5f * blockSize, 6f, 0f), visibleDuringDay: false);
-        CreateBoxBlock(new Vector3(26f * blockSize, 6f, 0f), visibleDuringDay: false);
 
         // Place monsters on platforms:
-        CreateMonster(new Vector3(6f * blockSize, 1.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
-        CreateMonster(new Vector3(10f * blockSize, 3f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(8f * blockSize, 1.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
+        CreateMonster(new Vector3(12f * blockSize, 3f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
         CreateMonster(new Vector3(14f * blockSize, 4.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
-        CreateMonster(new Vector3(18f * blockSize, 6f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(19f * blockSize, 6f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
 
         // Place 4 lightning bolts - ONLY reachable by climbing/platforming:
         // Bolt 1: Requires platforming
@@ -493,6 +502,10 @@ public class Level3Generator : MonoBehaviour
         monsterComponent.monsterColor = Color.white;
         monsterComponent.size = 0.8f;
         monsterComponent.visibleOnlyAtNight = true;
+        monsterComponent.canMove = true;
+        monsterComponent.moveSpeed = 1.0f;
+        monsterComponent.patrol = true;
+        monsterComponent.patrolDistance = 2.0f;
     }
 
     void ClearLevel()
