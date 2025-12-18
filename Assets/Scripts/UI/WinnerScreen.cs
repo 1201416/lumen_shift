@@ -35,6 +35,8 @@ public class WinnerScreen : MonoBehaviour
     
     private bool isShowing = false;
     private FinishLine finishLine;
+    [Header("Audio")]
+    public AudioClip winSound;
     
     void Start()
     {
@@ -52,6 +54,18 @@ public class WinnerScreen : MonoBehaviour
         
         // Hide by default
         HideWinnerScreen();
+
+        // Try load default win sound from Resources if none assigned
+        if (winSound == null)
+        {
+            winSound = Resources.Load<AudioClip>("Audio/win");
+            if (winSound == null) winSound = Resources.Load<AudioClip>("Audio/finish");
+            if (winSound == null) winSound = Resources.Load<AudioClip>("win");
+            if (winSound != null)
+            {
+                Debug.Log("WinnerScreen: loaded winSound from Resources");
+            }
+        }
     }
     
     void Update()
@@ -399,6 +413,18 @@ public class WinnerScreen : MonoBehaviour
         
         // Don't pause time - let animations continue
         // Time.timeScale = 0f; // Removed - keep time running
+        // Play win sound if available
+        if (winSound != null)
+        {
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX(winSound, 1f);
+            }
+            else
+            {
+                AudioSource.PlayClipAtPoint(winSound, Camera.main != null ? Camera.main.transform.position : transform.position);
+            }
+        }
     }
     
     /// <summary>
