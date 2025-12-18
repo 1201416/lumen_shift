@@ -66,7 +66,25 @@ public class FirstLevelGenerator : MonoBehaviour
         // If BootScreen still exists after timeout, proceed anyway
         if (GameObject.Find("BootScreen") != null)
         {
-            Debug.LogWarning("FirstLevelGenerator: BootScreen still present after timeout, proceeding to generate level.");
+            Debug.LogWarning("FirstLevelGenerator: BootScreen still present after timeout, proceeding to wait for MainMenu.");
+        }
+        
+        // Wait for MainMenu to be dismissed (player clicks "New Game")
+        float menuTimeout = 300f; // 5 minutes max wait for player to click
+        t = 0f;
+        while (!MainMenu.HasStartedGame && t < menuTimeout)
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        
+        if (!MainMenu.HasStartedGame)
+        {
+            Debug.LogWarning("FirstLevelGenerator: MainMenu timeout, proceeding to generate level.");
+        }
+        else
+        {
+            Debug.Log("FirstLevelGenerator: MainMenu dismissed, generating level.");
         }
 
         GenerateFirstLevel();

@@ -219,7 +219,8 @@ public class BootScreenController : MonoBehaviour
                 canvasGroup.alpha = 0f;
                 if (canvas != null) canvas.enabled = false;
                 active = false;
-                Debug.Log("BootScreen: hidden, destroying");
+                Debug.Log("BootScreen: hidden, spawning MainMenu");
+                SpawnMainMenu();
                 Destroy(this.gameObject);
             }
         }
@@ -231,7 +232,23 @@ public class BootScreenController : MonoBehaviour
             Debug.LogWarning($"BootScreen: safety timeout reached ({totalElapsed:F1}s), forcing removal");
             if (canvas != null) canvas.enabled = false;
             active = false;
+            SpawnMainMenu();
             try { DestroyImmediate(this.gameObject); } catch { Destroy(this.gameObject); }
+        }
+    }
+    
+    /// <summary>
+    /// Create the MainMenu after BootScreen finishes
+    /// </summary>
+    void SpawnMainMenu()
+    {
+        // Only spawn if MainMenu doesn't already exist
+        if (Object.FindFirstObjectByType<MainMenu>() == null)
+        {
+            GameObject menuObj = new GameObject("MainMenu");
+            Object.DontDestroyOnLoad(menuObj);
+            menuObj.AddComponent<MainMenu>();
+            Debug.Log("BootScreen: MainMenu spawned");
         }
     }
 }
