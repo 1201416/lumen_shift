@@ -159,6 +159,18 @@ public class LightningBolt : MonoBehaviour
             isDayTime = true;
             UpdateVisuals();
         }
+
+        // Try to load a default collection sound from Resources if none assigned
+        if (collectionSound == null)
+        {
+            collectionSound = Resources.Load<AudioClip>("Audio/collect");
+            if (collectionSound == null) collectionSound = Resources.Load<AudioClip>("Audio/bolt_collect");
+            if (collectionSound == null) collectionSound = Resources.Load<AudioClip>("collect");
+            if (collectionSound != null)
+            {
+                Debug.Log("LightningBolt: loaded collectionSound from Resources");
+            }
+        }
     }
 
     void Update()
@@ -272,7 +284,14 @@ public class LightningBolt : MonoBehaviour
         // Play sound if available
         if (collectionSound != null)
         {
-            AudioSource.PlayClipAtPoint(collectionSound, transform.position);
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX(collectionSound, 1f);
+            }
+            else
+            {
+                AudioSource.PlayClipAtPoint(collectionSound, transform.position);
+            }
         }
         
         // Disable visuals and collider (but don't destroy - needed for reset)

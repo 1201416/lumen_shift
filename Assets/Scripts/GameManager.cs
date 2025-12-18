@@ -52,17 +52,6 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        // Day/night cycle (if you want automatic cycling)
-        // Uncomment this if you want automatic day/night switching
-        /*
-        cycleTimer += Time.deltaTime;
-        if (cycleTimer >= dayNightCycleDuration)
-        {
-            cycleTimer = 0f;
-            ToggleDayNight();
-        }
-        */
-        
         // Manual toggle with SHIFT key - using new Input System
         if (Keyboard.current != null && 
             (Keyboard.current.leftShiftKey.wasPressedThisFrame || Keyboard.current.rightShiftKey.wasPressedThisFrame))

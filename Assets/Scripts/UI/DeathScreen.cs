@@ -17,6 +17,8 @@ public class DeathScreen : MonoBehaviour
     [Header("Settings")]
     public string deathMessage = "You died!";
     public string respawnButtonTextStr = "Respawn (R)";
+    [Header("Audio")]
+    public AudioClip deathSound;
     
     private GameManager gameManager;
     private Vector3 playerSpawnPosition;
@@ -46,6 +48,17 @@ public class DeathScreen : MonoBehaviour
         
         // Hide by default
         HideDeathScreen();
+
+        // Try load default death sound from Resources if none assigned
+        if (deathSound == null)
+        {
+            deathSound = Resources.Load<AudioClip>("Audio/death");
+            if (deathSound == null) deathSound = Resources.Load<AudioClip>("death");
+            if (deathSound != null)
+            {
+                Debug.Log("DeathScreen: loaded deathSound from Resources");
+            }
+        }
     }
     
     void Update()
@@ -164,6 +177,19 @@ public class DeathScreen : MonoBehaviour
             if (rb != null)
             {
                 rb.linearVelocity = Vector2.zero;
+            }
+        }
+
+        // Play death sound if available
+        if (deathSound != null)
+        {
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX(deathSound, 1f);
+            }
+            else
+            {
+                AudioSource.PlayClipAtPoint(deathSound, Camera.main != null ? Camera.main.transform.position : transform.position);
             }
         }
     }
