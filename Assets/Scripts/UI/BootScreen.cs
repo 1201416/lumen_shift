@@ -15,7 +15,7 @@ public static class BootScreen
         GameObject go = new GameObject("BootScreen");
         Object.DontDestroyOnLoad(go);
         BootScreenController controller = go.AddComponent<BootScreenController>();
-        controller.displaySeconds = 5f;
+        controller.displaySeconds = 10f;
         controller.fadeSeconds = 0.5f;
         controller.Show();
     }
@@ -26,7 +26,7 @@ public class BootScreenController : MonoBehaviour
     public float displaySeconds = 2.5f;
     public float fadeSeconds = 0.5f;
     // Seconds to show credits.png (after logo)
-    public float creditsDisplaySeconds = 3f;
+    public float creditsDisplaySeconds = 2f;
 
     Canvas canvas;
     CanvasGroup canvasGroup;
@@ -39,6 +39,7 @@ public class BootScreenController : MonoBehaviour
     // UI elements and state for second splash
     Image logoImage;
     Text logoTextFallback;
+    Sprite logoSprite;      // Store logo sprite for reference
     Sprite creditsSprite;
     bool showingCredits = false;
 
@@ -78,6 +79,7 @@ public class BootScreenController : MonoBehaviour
         GameObject logoGO = new GameObject("Logo");
         logoGO.transform.SetParent(canvasGO.transform, false);
         logoImage = logoGO.AddComponent<Image>();
+        logoImage.color = Color.white; // Ensure fully visible
         RectTransform logoRect = logoGO.GetComponent<RectTransform>();
         logoRect.anchorMin = new Vector2(0.5f, 0.5f);
         logoRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -86,19 +88,34 @@ public class BootScreenController : MonoBehaviour
 
         // Try load Sprite first, then Texture2D
         Sprite logo = Resources.Load<Sprite>("Logo");
+        Debug.Log($"BootScreen: Resources.Load<Sprite>('Logo') returned: {(logo != null ? "SUCCESS" : "null")}");
         if (logo == null)
         {
+            Debug.Log("BootScreen: Logo sprite not found, trying Texture2D");
             Texture2D tex = Resources.Load<Texture2D>("Logo");
+            Debug.Log($"BootScreen: Resources.Load<Texture2D>('Logo') returned: {(tex != null ? "SUCCESS" : "null")}");
             if (tex != null)
             {
+                Debug.Log($"BootScreen: Logo texture loaded ({tex.width}x{tex.height}), creating sprite...");
                 logo = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+                Debug.Log($"BootScreen: Sprite.Create returned: {(logo != null ? "SUCCESS" : "null")}");
             }
+            else
+            {
+                Debug.LogWarning("BootScreen: Logo.png not found in Resources folder! Check that file exists at Assets/Resources/Logo.png");
+            }
+        }
+        else
+        {
+            Debug.Log($"BootScreen: Logo sprite loaded from Resources ({logo.texture.width}x{logo.texture.height})");
         }
 
         if (logo != null)
         {
+            logoSprite = logo;  // Store for later reference
             logoImage.sprite = logo;
             logoImage.preserveAspect = true;
+            Debug.Log("BootScreen: Logo image set successfully - will show BEFORE credits");
         }
         else
         {
@@ -152,27 +169,31 @@ public class BootScreenController : MonoBehaviour
             {
                 if (elapsed >= displaySeconds)
                 {
-                    // If we have a credits sprite or fallback text, switch to credits
-                    if (creditsSprite != null || logoTextFallback != null)
+                    // Switch to credits if available (logo was shown first)
+                    if (creditsSprite != null)
                     {
                         showingCredits = true;
                         elapsed = 0f;
-                        Debug.Log("BootScreen: switching to credits");
-                        if (logoImage != null && creditsSprite != null)
+                        Debug.Log("BootScreen: switching from Logo to Credits");
+                        if (logoImage != null)
                         {
                             logoImage.sprite = creditsSprite;
                             logoImage.preserveAspect = true;
                         }
-                        else if (logoTextFallback != null)
-                        {
-                            logoTextFallback.text = "Credits";
-                        }
+                    }
+                    else if (logoTextFallback != null)
+                    {
+                        // No credits sprite, but we have fallback text - switch text to "Credits"
+                        showingCredits = true;
+                        elapsed = 0f;
+                        Debug.Log("BootScreen: switching fallback text to Credits");
+                        logoTextFallback.text = "Credits";
                     }
                     else
                     {
                         // No credits available, start hiding
                         hiding = true;
-                        Debug.Log("BootScreen: time elapsed, start hiding");
+                        Debug.Log("BootScreen: no credits available, start hiding");
                     }
                 }
             }
