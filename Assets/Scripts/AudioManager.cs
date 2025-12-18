@@ -78,10 +78,24 @@ public class AudioManager : MonoBehaviour
         SceneManager.sceneLoaded += OnSceneLoaded;
 
         // If still not bound, play fallback backgroundMusic if requested
-        if (cachedGameManager == null && playMusicOnStart && backgroundMusic != null)
-        {
-            PlayMusic(backgroundMusic, true);
-        }
+            if (cachedGameManager == null && playMusicOnStart)
+            {
+                // Prefer dayMusic if available, otherwise fallback to backgroundMusic
+                if (dayMusic != null)
+                {
+                    Debug.Log("AudioManager: No GameManager bound - playing dayMusic by default");
+                    PlayDayNightMusic(true, true);
+                }
+                else if (backgroundMusic != null)
+                {
+                    Debug.Log("AudioManager: No GameManager bound - playing backgroundMusic fallback");
+                    PlayMusic(backgroundMusic, true);
+                }
+                else
+                {
+                    Debug.Log("AudioManager: No music assigned to play on start");
+                }
+            }
     }
 
     void OnDestroy()

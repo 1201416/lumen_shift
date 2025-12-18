@@ -5,7 +5,7 @@ MonoImporter:
   serializedVersion: 2
   defaultReferences:
   - backgroundMusic: {instanceID: 0}
-  - dayMusic: {instanceID: 0}
+  - dayMusic: {fileID: 8300000, guid: 5cd5ecc1aa8546d4da2352e7d74a2bc9, type: 3}
   - nightMusic: {fileID: 8300000, guid: 330ca5c6c9c08ce4f8e7154d83f4b4f1, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}

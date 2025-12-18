@@ -136,6 +136,18 @@ public class GameManager : MonoBehaviour
         OnTimeOfDayChanged?.Invoke(isDay);
         
         Debug.Log($"Time of Day: {(isDay ? "DAY" : "NIGHT")}");
+        // Ensure AudioManager updates music immediately when time changes
+        if (typeof(AudioManager) != null)
+        {
+            try
+            {
+                if (AudioManager.Instance != null)
+                {
+                    AudioManager.Instance.PlayDayNightMusic(isDay, false);
+                }
+            }
+            catch { }
+        }
     }
 }
 
