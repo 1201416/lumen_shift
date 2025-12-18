@@ -48,8 +48,28 @@ public class FirstLevelGenerator : MonoBehaviour
         
         if (generateOnStart)
         {
-            GenerateFirstLevel();
+            StartCoroutine(WaitForBootThenGenerate());
         }
+    }
+
+    IEnumerator WaitForBootThenGenerate()
+    {
+        // Wait until BootScreen GameObject no longer exists or timeout
+        float timeout = 10f; // seconds
+        float t = 0f;
+        while (GameObject.Find("BootScreen") != null && t < timeout)
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        // If BootScreen still exists after timeout, proceed anyway
+        if (GameObject.Find("BootScreen") != null)
+        {
+            Debug.LogWarning("FirstLevelGenerator: BootScreen still present after timeout, proceeding to generate level.");
+        }
+
+        GenerateFirstLevel();
     }
 
     /// <summary>
