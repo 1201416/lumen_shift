@@ -257,6 +257,12 @@ public class MainMenu : MonoBehaviour
         HasStartedGame = true;
         isMenuActive = false;
         
+        // Switch from menu music to gameplay music
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.StartGameplayMusic();
+        }
+        
         // Hide the menu
         if (menuCanvas != null)
         {

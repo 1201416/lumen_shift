@@ -12,6 +12,7 @@ public class AudioManager : MonoBehaviour
 
     [Header("Music")]
     public AudioClip backgroundMusic;
+    public AudioClip menuMusic;
     public AudioClip dayMusic;
     public AudioClip nightMusic;
     [Range(0f, 1f)] public float musicVolume = 0.6f;
@@ -28,6 +29,7 @@ public class AudioManager : MonoBehaviour
     private AudioSource sfxSource;
     private Coroutine crossfadeCoroutine;
     private GameManager cachedGameManager;
+    private bool gameplayStarted = false; // True after player clicks "New Game"
 
     void Awake()
     {
@@ -65,7 +67,9 @@ public class AudioManager : MonoBehaviour
 
     void Start()
     {
-        // Load default day/night music from Resources if none assigned
+        // Load default music from Resources if none assigned
+        if (menuMusic == null)
+            menuMusic = Resources.Load<AudioClip>("Audio/menu");
         if (dayMusic == null)
             dayMusic = Resources.Load<AudioClip>("Audio/day");
         if (nightMusic == null)
@@ -77,25 +81,24 @@ public class AudioManager : MonoBehaviour
         // Listen for scene loads to attempt binding if GameManager is created later
         SceneManager.sceneLoaded += OnSceneLoaded;
 
-        // If still not bound, play fallback backgroundMusic if requested
-            if (cachedGameManager == null && playMusicOnStart)
+        // Play menu music during boot screen and main menu
+        if (playMusicOnStart)
+        {
+            if (menuMusic != null)
             {
-                // Prefer dayMusic if available, otherwise fallback to backgroundMusic
-                if (dayMusic != null)
-                {
-                    Debug.Log("AudioManager: No GameManager bound - playing dayMusic by default");
-                    PlayDayNightMusic(true, true);
-                }
-                else if (backgroundMusic != null)
-                {
-                    Debug.Log("AudioManager: No GameManager bound - playing backgroundMusic fallback");
-                    PlayMusic(backgroundMusic, true);
-                }
-                else
-                {
-                    Debug.Log("AudioManager: No music assigned to play on start");
-                }
+                Debug.Log("AudioManager: Playing menu music during boot/main menu");
+                PlayMusic(menuMusic, true);
             }
+            else if (backgroundMusic != null)
+            {
+                Debug.Log("AudioManager: No menu music - playing backgroundMusic fallback");
+                PlayMusic(backgroundMusic, true);
+            }
+            else
+            {
+                Debug.Log("AudioManager: No music assigned to play on start");
+            }
+        }
     }
 
     void OnDestroy()
@@ -120,15 +123,65 @@ public class AudioManager : MonoBehaviour
             {
                 cachedGameManager.OnTimeOfDayChanged += OnTimeOfDayChanged;
                 Debug.Log($"AudioManager: bound to GameManager, initial isDay={cachedGameManager.isDayTime}");
-                PlayDayNightMusic(cachedGameManager.isDayTime, true);
+                // Only switch to day/night music if gameplay has started
+                if (gameplayStarted)
+                {
+                    PlayDayNightMusic(cachedGameManager.isDayTime, true);
+                }
             }
         }
     }
 
     void OnTimeOfDayChanged(bool isDay)
     {
+        // Only respond to day/night changes after gameplay has started
+        if (!gameplayStarted)
+        {
+            Debug.Log($"AudioManager: OnTimeOfDayChanged ignored (gameplay not started yet)");
+            return;
+        }
         Debug.Log($"AudioManager: OnTimeOfDayChanged received isDay={isDay}");
         PlayDayNightMusic(isDay, false);
+    }
+    
+    /// <summary>
+    /// Called when the game starts (player clicks "New Game").
+    /// Transitions from menu music to day/night gameplay music.
+    /// </summary>
+    public void StartGameplayMusic()
+    {
+        if (gameplayStarted) return;
+        
+        gameplayStarted = true;
+        Debug.Log("AudioManager: Gameplay started - switching to day/night music");
+        
+        // Determine current time of day from GameManager
+        bool isDay = true;
+        if (cachedGameManager != null)
+        {
+            isDay = cachedGameManager.isDayTime;
+        }
+        else
+        {
+            // Try to find GameManager now
+            cachedGameManager = FindFirstObjectByType<GameManager>();
+            if (cachedGameManager != null)
+            {
+                cachedGameManager.OnTimeOfDayChanged += OnTimeOfDayChanged;
+                isDay = cachedGameManager.isDayTime;
+            }
+        }
+        
+        // Crossfade to appropriate day/night music
+        PlayDayNightMusic(isDay, false);
+    }
+    
+    /// <summary>
+    /// Check if gameplay music has started
+    /// </summary>
+    public bool HasGameplayStarted()
+    {
+        return gameplayStarted;
     }
 
     /// <summary>
