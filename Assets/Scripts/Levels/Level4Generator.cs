@@ -93,10 +93,14 @@ public class Level4Generator : MonoBehaviour
         CreateBoxBlock(new Vector3(6f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(7f * blockSize, 1.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(8f * blockSize, 1.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(7.5f * blockSize, 2.2f, 0f), visibleDuringDay: true);
         CreateBoxBlock(new Vector3(8f * blockSize, 3f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(7.25f * blockSize, 3.7f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(8f * blockSize, 4.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(8.30f * blockSize, 5.15f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(8f * blockSize, 6f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(8f * blockSize, 7.5f, 0f), visibleDuringDay: false);
+        CreateBoxBlock(new Vector3(8f * blockSize, 4.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(8f * blockSize, 9f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(8f * blockSize, 10.5f, 0f), visibleDuringDay: false);
         CreateBoxBlock(new Vector3(6f * blockSize, 10.5f, 0f), visibleDuringDay: false);
@@ -496,6 +500,11 @@ public class Level4Generator : MonoBehaviour
         monsterComponent.monsterColor = Color.white;
         monsterComponent.size = 0.8f;
         monsterComponent.visibleOnlyAtNight = true;
+         //monster patrol settings
+        monsterComponent.canMove = true;
+        monsterComponent.moveSpeed = 1.5f;
+        monsterComponent.patrol = true;
+        monsterComponent.patrolDistance = 3f;
     }
 
     void ClearLevel()

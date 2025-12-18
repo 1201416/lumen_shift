@@ -123,8 +123,8 @@ public class Level2Generator : MonoBehaviour
         CreateBoxBlock(new Vector3(23f * blockSize, 4.5f, 0f), visibleDuringDay: false);
 
         // Place monsters on platforms:
-        //CreateMonster(new Vector3(6.5f * blockSize, 4.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
-        //CreateMonster(new Vector3(10f * blockSize, 6f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
+        CreateMonster(new Vector3(6.5f * blockSize, 4.5f + 0.5f, 0f), Monster.MonsterType.Mushroom);
+        CreateMonster(new Vector3(10f * blockSize, 6f + 0.5f, 0f), Monster.MonsterType.FlyingEye);
 
         // Place 2 lightning bolts - ONLY reachable by climbing/platforming:
         // Bolt 1: Requires platforming
